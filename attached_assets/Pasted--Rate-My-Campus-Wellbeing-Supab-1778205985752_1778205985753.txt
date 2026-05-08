@@ -1,0 +1,558 @@
+-- ============================================================
+-- Rate My Campus Wellbeing — Supabase Schema
+-- Version 1.0 · 2026
+-- Built for: Replit + Supabase (PostgreSQL)
+-- Brand: Campus Mind / Resilient Mind ecosystem
+-- ============================================================
+-- Run this entire file in the Supabase SQL Editor.
+-- Tables are created in dependency order.
+-- Enable Row Level Security (RLS) is set on all tables.
+-- ============================================================
+
+
+-- ============================================================
+-- EXTENSIONS
+-- ============================================================
+
+create extension if not exists "uuid-ossp";
+
+
+-- ============================================================
+-- 1. CAMPUSES
+-- Reference table. Seeded manually after schema creation.
+-- One row per UC / CSU campus (or "Other").
+-- ============================================================
+
+create table if not exists campuses (
+  id             uuid primary key default uuid_generate_v4(),
+  slug           text not null unique,          -- e.g. 'cal-poly-slo'
+  name           text not null,                 -- e.g. 'Cal Poly San Luis Obispo'
+  system         text not null                  -- 'UC' | 'CSU' | 'Other'
+                   check (system in ('UC', 'CSU', 'Other')),
+  city           text,
+  active         boolean not null default true, -- hide a campus without deleting
+  created_at     timestamptz not null default now()
+);
+
+comment on table campuses is
+  'Reference list of UC and CSU campuses available in the campus dropdown.';
+
+
+-- ============================================================
+-- 2. SUBMITTERS
+-- Anonymised index of who submitted. No PII stored here.
+-- Linked 1-to-many to submissions (one submitter, many posts).
+-- ============================================================
+
+create table if not exists submitters (
+  id                  uuid primary key default uuid_generate_v4(),
+
+  -- Identity / community tags (multi-select from Screen 2)
+  community_tags      text[] not null default '{}',
+  -- Valid values: first-gen | transfer | international | lgbtq |
+  --   disability | greek-life | athletics | student-gov |
+  --   veteran | commuter | graduate | undocumented
+
+  -- Self-reported archetype from Screen 2 (optional)
+  archetype_self      text
+                        check (archetype_self in
+                          ('guardian', 'warrior', 'healer', 'guide')),
+
+  -- Broad student type derived from community_tags for fast queries
+  student_type        text
+                        check (student_type in
+                          ('undergraduate', 'graduate', 'unknown'))
+                        default 'unknown',
+
+  -- Session fingerprint — hashed, non-reversible, never PII.
+  -- Used only to detect obvious duplicate submissions.
+  session_hash        text,
+
+  created_at          timestamptz not null default now()
+);
+
+comment on table submitters is
+  'Anonymised submitter index. No name, email, or IP stored.
+   community_tags and archetype_self drive demographic cross-tabulation.';
+
+
+-- ============================================================
+-- 3. SUBMISSIONS
+-- Core UGC table. One row per piece of feedback.
+-- ============================================================
+
+create table if not exists submissions (
+  id                  uuid primary key default uuid_generate_v4(),
+
+  -- Foreign keys
+  campus_id           uuid not null references campuses(id),
+  submitter_id        uuid not null references submitters(id),
+
+  -- Feedback indexing (Screen 3 selections)
+  subject_tag         text not null
+                        check (subject_tag in (
+                          'campus-overall',
+                          'department-major',
+                          'facility',
+                          'program',
+                          'resource',
+                          'transition-experience'
+                        )),
+
+  dimension_tag       text not null
+                        check (dimension_tag in (
+                          'physical',
+                          'emotional',
+                          'intellectual',
+                          'social',
+                          'spiritual',
+                          'environmental',
+                          'occupational',
+                          'financial'
+                        )),
+
+  -- Derived archetype from dimension_tag crosswalk
+  -- guardian  = intellectual + occupational
+  -- warrior   = emotional + social
+  -- healer    = physical + financial
+  -- guide     = spiritual + environmental
+  -- Computed on insert via trigger (see below)
+  archetype_derived   text
+                        check (archetype_derived in
+                          ('guardian', 'warrior', 'healer', 'guide')),
+
+  -- Feedback content (Screen 4)
+  prompt_mode         text not null default 'free'
+                        check (prompt_mode in ('free', 'prompted')),
+  prompt_used         text,                     -- null if free mode
+  feedback_text       text not null
+                        check (char_length(feedback_text) between 30 and 500),
+
+  -- Optional student context (Screen 4 optional fields)
+  year_in_school      text
+                        check (year_in_school in
+                          ('1st', '2nd', '3rd', '4th', 'grad', null)),
+  major               text,                     -- free text, optional
+
+  -- Moderation
+  approved            boolean not null default false,
+  flagged             boolean not null default false,
+  flag_reason         text,                     -- populated by admin if flagged
+
+  -- Metadata
+  created_at          timestamptz not null default now(),
+  approved_at         timestamptz
+);
+
+comment on table submissions is
+  'Core UGC table. One row per student feedback submission.
+   approved = false by default — admin must approve before public display.
+   dimension_tag drives the archetype_derived value via trigger.';
+
+-- Index for fast campus page queries
+create index if not exists idx_submissions_campus_id
+  on submissions(campus_id);
+
+create index if not exists idx_submissions_campus_approved
+  on submissions(campus_id, approved)
+  where approved = true;
+
+create index if not exists idx_submissions_dimension
+  on submissions(dimension_tag);
+
+create index if not exists idx_submissions_archetype_derived
+  on submissions(archetype_derived);
+
+create index if not exists idx_submissions_created_at
+  on submissions(created_at desc);
+
+
+-- ============================================================
+-- 4. TRIGGER — derive archetype from dimension_tag
+-- Runs on every INSERT to submissions.
+-- Implements the Resilient Mind crosswalk.
+-- ============================================================
+
+create or replace function fn_derive_archetype()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.archetype_derived :=
+    case new.dimension_tag
+      when 'intellectual'  then 'guardian'
+      when 'occupational'  then 'guardian'
+      when 'emotional'     then 'warrior'
+      when 'social'        then 'warrior'
+      when 'physical'      then 'healer'
+      when 'financial'     then 'healer'
+      when 'spiritual'     then 'guide'
+      when 'environmental' then 'guide'
+      else null
+    end;
+  return new;
+end;
+$$;
+
+create or replace trigger trg_derive_archetype
+  before insert or update of dimension_tag
+  on submissions
+  for each row
+  execute function fn_derive_archetype();
+
+
+-- ============================================================
+-- 5. CAMPUS_SCORES (Materialised aggregates)
+-- Pre-computed per campus per dimension.
+-- Refreshed by a scheduled function or on each submission.
+-- Drives the campus public page charts without heavy live queries.
+-- ============================================================
+
+create table if not exists campus_scores (
+  id                  uuid primary key default uuid_generate_v4(),
+  campus_id           uuid not null references campuses(id),
+  dimension_tag       text not null
+                        check (dimension_tag in (
+                          'physical', 'emotional', 'intellectual', 'social',
+                          'spiritual', 'environmental', 'occupational', 'financial'
+                        )),
+  archetype_tag       text not null
+                        check (archetype_tag in
+                          ('guardian', 'warrior', 'healer', 'guide')),
+
+  submission_count    int not null default 0,
+  avg_score           numeric(4,2),             -- reserved for Phase 2 Option C ratings
+  pct_of_total        numeric(5,2),             -- share of submissions for this dimension
+
+  last_refreshed_at   timestamptz not null default now(),
+
+  unique (campus_id, dimension_tag)
+);
+
+comment on table campus_scores is
+  'Pre-aggregated scores per campus per dimension.
+   Refresh via fn_refresh_campus_scores() after each submission
+   or on a schedule. Drives public campus page charts.';
+
+
+-- ============================================================
+-- 6. FUNCTION — refresh campus scores
+-- Call after each new approved submission, or on a cron.
+-- Usage: select fn_refresh_campus_scores('campus-uuid-here');
+-- ============================================================
+
+create or replace function fn_refresh_campus_scores(p_campus_id uuid)
+returns void
+language plpgsql
+as $$
+declare
+  v_total int;
+begin
+  -- Count total approved submissions for this campus
+  select count(*) into v_total
+  from submissions
+  where campus_id = p_campus_id
+    and approved = true;
+
+  -- Upsert one row per dimension
+  insert into campus_scores (
+    campus_id,
+    dimension_tag,
+    archetype_tag,
+    submission_count,
+    pct_of_total,
+    last_refreshed_at
+  )
+  select
+    p_campus_id,
+    s.dimension_tag,
+    s.archetype_derived,
+    count(*)                                          as submission_count,
+    round(count(*) * 100.0 / nullif(v_total, 0), 2)  as pct_of_total,
+    now()
+  from submissions s
+  where s.campus_id = p_campus_id
+    and s.approved = true
+    and s.archetype_derived is not null
+  group by s.dimension_tag, s.archetype_derived
+  on conflict (campus_id, dimension_tag)
+  do update set
+    archetype_tag      = excluded.archetype_tag,
+    submission_count   = excluded.submission_count,
+    pct_of_total       = excluded.pct_of_total,
+    last_refreshed_at  = now();
+end;
+$$;
+
+
+-- ============================================================
+-- 7. ARCHETYPE_SCORES (Campus-level archetype roll-up)
+-- Aggregates the two dimensions per archetype into one score.
+-- Drives the four archetype cards on the campus public page.
+-- ============================================================
+
+create table if not exists archetype_scores (
+  id                  uuid primary key default uuid_generate_v4(),
+  campus_id           uuid not null references campuses(id),
+  archetype_tag       text not null
+                        check (archetype_tag in
+                          ('guardian', 'warrior', 'healer', 'guide')),
+  submission_count    int not null default 0,
+  pct_of_total        numeric(5,2),
+  is_dominant         boolean not null default false,
+  last_refreshed_at   timestamptz not null default now(),
+
+  unique (campus_id, archetype_tag)
+);
+
+comment on table archetype_scores is
+  'Roll-up of campus_scores to archetype level.
+   is_dominant marks the leading archetype for badge display.
+   Refresh via fn_refresh_archetype_scores().';
+
+
+create or replace function fn_refresh_archetype_scores(p_campus_id uuid)
+returns void
+language plpgsql
+as $$
+declare
+  v_total int;
+  v_max_count int;
+begin
+  select count(*) into v_total
+  from submissions
+  where campus_id = p_campus_id
+    and approved = true;
+
+  insert into archetype_scores (
+    campus_id,
+    archetype_tag,
+    submission_count,
+    pct_of_total,
+    last_refreshed_at
+  )
+  select
+    p_campus_id,
+    archetype_derived,
+    count(*)                                          as submission_count,
+    round(count(*) * 100.0 / nullif(v_total, 0), 2)  as pct_of_total,
+    now()
+  from submissions
+  where campus_id = p_campus_id
+    and approved = true
+    and archetype_derived is not null
+  group by archetype_derived
+  on conflict (campus_id, archetype_tag)
+  do update set
+    submission_count  = excluded.submission_count,
+    pct_of_total      = excluded.pct_of_total,
+    is_dominant       = false,                        -- reset all first
+    last_refreshed_at = now();
+
+  -- Mark the single dominant archetype
+  select max(submission_count) into v_max_count
+  from archetype_scores
+  where campus_id = p_campus_id;
+
+  update archetype_scores
+  set is_dominant = true
+  where campus_id = p_campus_id
+    and submission_count = v_max_count;
+end;
+$$;
+
+
+-- ============================================================
+-- 8. ADMIN_USERS
+-- Simple single-table auth for the moderation queue.
+-- Supabase Auth handles the actual session — this table
+-- links auth.users to admin role grants.
+-- ============================================================
+
+create table if not exists admin_users (
+  id          uuid primary key references auth.users(id),
+  email       text not null,
+  created_at  timestamptz not null default now()
+);
+
+comment on table admin_users is
+  'Allowlist of Supabase Auth users who can access /admin.
+   Add the admin email to auth.users via Supabase dashboard,
+   then insert the resulting UUID here.';
+
+
+-- ============================================================
+-- 9. ROW LEVEL SECURITY
+-- Public can read approved submissions and campus data.
+-- Only admin_users can approve / flag submissions.
+-- Submitters table is write-only from the public (insert only).
+-- ============================================================
+
+-- CAMPUSES — public read
+alter table campuses enable row level security;
+
+create policy "public read campuses"
+  on campuses for select
+  using (active = true);
+
+
+-- SUBMITTERS — insert-only from anon, no reads
+alter table submitters enable row level security;
+
+create policy "anon insert submitters"
+  on submitters for insert
+  with check (true);
+
+create policy "admin read submitters"
+  on submitters for select
+  using (
+    auth.uid() in (select id from admin_users)
+  );
+
+
+-- SUBMISSIONS — anon can insert; public reads approved only
+alter table submissions enable row level security;
+
+create policy "anon insert submissions"
+  on submissions for insert
+  with check (true);
+
+create policy "public read approved submissions"
+  on submissions for select
+  using (approved = true);
+
+create policy "admin full access submissions"
+  on submissions for all
+  using (
+    auth.uid() in (select id from admin_users)
+  );
+
+
+-- CAMPUS_SCORES — public read
+alter table campus_scores enable row level security;
+
+create policy "public read campus scores"
+  on campus_scores for select
+  using (true);
+
+create policy "admin write campus scores"
+  on campus_scores for all
+  using (
+    auth.uid() in (select id from admin_users)
+  );
+
+
+-- ARCHETYPE_SCORES — public read
+alter table archetype_scores enable row level security;
+
+create policy "public read archetype scores"
+  on archetype_scores for select
+  using (true);
+
+create policy "admin write archetype scores"
+  on archetype_scores for all
+  using (
+    auth.uid() in (select id from admin_users)
+  );
+
+
+-- ADMIN_USERS — admin read only
+alter table admin_users enable row level security;
+
+create policy "admin read admin users"
+  on admin_users for select
+  using (
+    auth.uid() in (select id from admin_users)
+  );
+
+
+-- ============================================================
+-- 10. SEED — CAMPUSES
+-- Full UC and CSU system. Run once after schema creation.
+-- ============================================================
+
+insert into campuses (slug, name, system, city) values
+
+  -- University of California
+  ('uc-berkeley',       'UC Berkeley',                    'UC',  'Berkeley'),
+  ('uc-los-angeles',    'UC Los Angeles',                 'UC',  'Los Angeles'),
+  ('uc-san-diego',      'UC San Diego',                   'UC',  'La Jolla'),
+  ('uc-davis',          'UC Davis',                       'UC',  'Davis'),
+  ('uc-santa-barbara',  'UC Santa Barbara',               'UC',  'Santa Barbara'),
+  ('uc-irvine',         'UC Irvine',                      'UC',  'Irvine'),
+  ('uc-santa-cruz',     'UC Santa Cruz',                  'UC',  'Santa Cruz'),
+  ('uc-riverside',      'UC Riverside',                   'UC',  'Riverside'),
+  ('uc-merced',         'UC Merced',                      'UC',  'Merced'),
+
+  -- California State University
+  ('cal-poly-slo',      'Cal Poly San Luis Obispo',       'CSU', 'San Luis Obispo'),
+  ('cal-poly-pomona',   'Cal Poly Pomona',                'CSU', 'Pomona'),
+  ('sdsu',              'San Diego State University',     'CSU', 'San Diego'),
+  ('csulb',             'Cal State Long Beach',           'CSU', 'Long Beach'),
+  ('csuf',              'Cal State Fullerton',            'CSU', 'Fullerton'),
+  ('sjsu',              'San José State University',      'CSU', 'San José'),
+  ('sfsu',              'San Francisco State University', 'CSU', 'San Francisco'),
+  ('csun',              'Cal State Northridge',           'CSU', 'Northridge'),
+  ('csusb',             'Cal State San Bernardino',       'CSU', 'San Bernardino'),
+  ('csu-fresno',        'Fresno State',                   'CSU', 'Fresno'),
+  ('csu-sacramento',    'Sacramento State',               'CSU', 'Sacramento'),
+  ('csu-chico',         'Chico State',                    'CSU', 'Chico'),
+  ('csu-dominguez',     'Cal State Dominguez Hills',      'CSU', 'Carson'),
+  ('csu-east-bay',      'Cal State East Bay',             'CSU', 'Hayward'),
+  ('csu-los-angeles',   'Cal State Los Angeles',          'CSU', 'Los Angeles'),
+  ('csu-monterey-bay',  'CSU Monterey Bay',               'CSU', 'Seaside'),
+  ('csu-stanislaus',    'Stanislaus State',               'CSU', 'Turlock'),
+  ('csu-bakersfield',   'CSU Bakersfield',                'CSU', 'Bakersfield'),
+  ('csu-channel-islands','CSU Channel Islands',           'CSU', 'Camarillo'),
+  ('csu-maritime',      'Cal Maritime',                   'CSU', 'Vallejo'),
+  ('humboldt',          'Cal Poly Humboldt',              'CSU', 'Arcata'),
+
+  -- Catch-all
+  ('other',             'Other',                          'Other', null)
+
+on conflict (slug) do nothing;
+
+
+-- ============================================================
+-- QUICK REFERENCE — Key queries for Replit backend
+-- ============================================================
+
+-- Campus public page: approved submissions feed
+-- select s.feedback_text, s.dimension_tag, s.archetype_derived,
+--        s.year_in_school, s.major, s.created_at,
+--        sub.community_tags, sub.archetype_self
+-- from submissions s
+-- join submitters sub on sub.id = s.submitter_id
+-- where s.campus_id = $1 and s.approved = true
+-- order by s.created_at desc
+-- limit 20;
+
+-- Campus archetype lean (for public page cards)
+-- select archetype_tag, submission_count, pct_of_total, is_dominant
+-- from archetype_scores
+-- where campus_id = $1
+-- order by submission_count desc;
+
+-- Campus dimension bars (for public page chart)
+-- select dimension_tag, submission_count, pct_of_total
+-- from campus_scores
+-- where campus_id = $1
+-- order by submission_count desc;
+
+-- Admin moderation queue
+-- select s.id, c.name as campus, s.dimension_tag, s.feedback_text,
+--        s.flagged, s.flag_reason, s.created_at
+-- from submissions s
+-- join campuses c on c.id = s.campus_id
+-- where s.approved = false
+-- order by s.created_at asc;
+
+-- After admin approves: update then refresh scores
+-- update submissions set approved = true, approved_at = now()
+-- where id = $1;
+-- select fn_refresh_campus_scores($campus_id);
+-- select fn_refresh_archetype_scores($campus_id);
+
+-- ============================================================
+-- END OF SCHEMA
+-- ============================================================

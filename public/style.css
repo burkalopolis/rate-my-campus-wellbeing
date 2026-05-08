@@ -1,0 +1,1290 @@
+/* ============================================================
+   Rate My Campus Wellbeing — style.css
+   Campus Mind Brand Kit · Version 1.0 · 2026
+   Mobile-first · Cool mist background · Nunito type system
+   ============================================================ */
+
+/* ── Google Fonts ─────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&family=Nunito+Sans:wght@400;500&display=swap');
+
+/* ── Brand tokens ─────────────────────────────────────────── */
+:root {
+  /* Backgrounds */
+  --bg-primary:     #EEF2F7;   /* cool mist — page background */
+  --bg-white:       #FFFFFF;
+  --bg-cream:       #F7F4EE;   /* warm cream — cards, receipt */
+  --bg-night:       #2E3060;   /* deep night — bridge section */
+  --bg-indigo:      #F0EDF8;   /* soft indigo — subtle panels */
+
+  /* Brand colours */
+  --blue:           #4A6FA5;   /* primary blue */
+  --blue-dark:      #3D5F8F;   /* button hover */
+  --blue-light:     #EEF2F7;   /* button secondary fill */
+  --gold:           #D4A030;   /* CampusMind gold */
+  --gold-dark:      #B8891F;
+
+  /* Text */
+  --text-primary:   #1A1F36;
+  --text-secondary: #4A5568;
+  --text-muted:     #718096;
+  --text-white:     #FFFFFF;
+
+  /* Borders */
+  --border:         rgba(0,0,0,0.10);
+  --border-med:     rgba(0,0,0,0.16);
+
+  /* Archetype card backgrounds — exact brand kit values */
+  --arch-guardian:  #C4856A;   /* terracotta dusk */
+  --arch-warrior:   #4A5080;   /* charged indigo */
+  --arch-healer:    #7BA898;   /* still water sage */
+  --arch-guide:     #E8D98A;   /* morning cream */
+
+  /* Archetype text — exact brand kit values */
+  --arch-guardian-text: #1A0800;
+  --arch-warrior-text:  #FFFFFF;
+  --arch-healer-text:   #021410;
+  --arch-guide-text:    #1A1400;
+
+  /* Dimension colours — brand kit wellness palette */
+  --dim-physical:      #D4897A;
+  --dim-emotional:     #E8B484;
+  --dim-intellectual:  #E8D98A;
+  --dim-social:        #94C48A;
+  --dim-spiritual:     #90C8D8;
+  --dim-environmental: #8A9AC4;
+  --dim-occupational:  #A886B8;
+  --dim-financial:     #D4A0B8;
+
+  /* Layout */
+  --max-width:      680px;
+  --radius-sm:      8px;
+  --radius-md:      12px;
+  --radius-lg:      16px;
+  --radius-pill:    100px;
+
+  /* Spacing — 8px base unit */
+  --sp-1: 8px;
+  --sp-2: 16px;
+  --sp-3: 24px;
+  --sp-4: 32px;
+  --sp-5: 40px;
+  --sp-6: 48px;
+  --sp-10: 80px;
+}
+
+/* ── Reset ────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-family: 'Nunito Sans', Arial, sans-serif;
+  font-weight: 400;
+  font-size: 17px;
+  line-height: 1.7;
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  min-height: 100vh;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Nunito', Arial, sans-serif;
+  line-height: 1.2;
+  color: var(--text-primary);
+}
+
+h1 { font-size: 34px; font-weight: 800; }
+h2 { font-size: 26px; font-weight: 700; }
+h3 { font-size: 20px; font-weight: 600; }
+h4 { font-size: 17px; font-weight: 600; }
+
+a {
+  color: var(--blue);
+  text-decoration: none;
+}
+a:hover { text-decoration: underline; }
+
+img { max-width: 100%; display: block; }
+
+/* ── Utility ──────────────────────────────────────────────── */
+.hidden { display: none !important; }
+
+.page-wrap {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+/* ── Navigation ───────────────────────────────────────────── */
+.nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--sp-2) 20px;
+  background: var(--bg-white);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.nav-logo {
+  font-family: 'Nunito', sans-serif;
+  font-weight: 800;
+  font-size: 15px;
+  color: var(--blue);
+  letter-spacing: -0.01em;
+}
+
+.nav-link {
+  font-family: 'Nunito', sans-serif;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--blue);
+}
+
+/* ── Buttons ──────────────────────────────────────────────── */
+.btn-primary {
+  display: inline-block;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-white);
+  background: var(--blue);
+  border: none;
+  border-radius: var(--radius-pill);
+  padding: 14px var(--sp-3);
+  height: 48px;
+  cursor: pointer;
+  text-align: center;
+  text-decoration: none;
+  transition: background 0.15s ease;
+  white-space: nowrap;
+  width: 100%;
+}
+
+.btn-primary:hover {
+  background: var(--blue-dark);
+  text-decoration: none;
+  color: var(--text-white);
+}
+
+.btn-primary:disabled {
+  background: #B0BEC5;
+  cursor: not-allowed;
+}
+
+.btn-primary.btn-small {
+  width: auto;
+  height: 40px;
+  padding: 10px var(--sp-2);
+  font-size: 13px;
+}
+
+.btn-primary.btn-gold {
+  background: var(--gold);
+  color: #1A0800;
+}
+
+.btn-primary.btn-gold:hover {
+  background: var(--gold-dark);
+}
+
+.btn-secondary {
+  display: inline-block;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--blue);
+  background: transparent;
+  border: 1.5px solid var(--blue);
+  border-radius: var(--radius-pill);
+  padding: 12px var(--sp-3);
+  height: 48px;
+  cursor: pointer;
+  text-align: center;
+  text-decoration: none;
+  transition: background 0.15s ease;
+  width: 100%;
+}
+
+.btn-secondary:hover {
+  background: var(--blue-light);
+  text-decoration: none;
+}
+
+/* ── Trust pills ──────────────────────────────────────────── */
+.trust-row {
+  display: flex;
+  gap: var(--sp-1);
+  flex-wrap: wrap;
+  justify-content: center;
+  margin: var(--sp-2) 0;
+}
+
+.trust-pill {
+  font-family: 'Nunito', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-white);
+  border: 1px solid var(--border-med);
+  color: var(--text-secondary);
+}
+
+.trust-pill.light {
+  background: rgba(255,255,255,0.15);
+  border-color: rgba(255,255,255,0.3);
+  color: rgba(255,255,255,0.9);
+}
+
+/* ── Bubble selectors ─────────────────────────────────────── */
+.bubble-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1);
+  margin: var(--sp-2) 0;
+}
+
+.bubble {
+  font-family: 'Nunito', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: var(--radius-pill);
+  border: 1.5px solid var(--border-med);
+  background: var(--bg-white);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.bubble:hover {
+  border-color: var(--blue);
+  color: var(--blue);
+}
+
+.bubble.selected {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: var(--text-white);
+}
+
+/* Dimension-coloured bubbles */
+.dim-physical.selected      { background: var(--dim-physical);      border-color: var(--dim-physical);      color: #1A0800; }
+.dim-emotional.selected     { background: var(--dim-emotional);     border-color: var(--dim-emotional);     color: #1A0800; }
+.dim-intellectual.selected  { background: var(--dim-intellectual);  border-color: var(--dim-intellectual);  color: #1A1400; }
+.dim-social.selected        { background: var(--dim-social);        border-color: var(--dim-social);        color: #021410; }
+.dim-spiritual.selected     { background: var(--dim-spiritual);     border-color: var(--dim-spiritual);     color: #021410; }
+.dim-environmental.selected { background: var(--dim-environmental); border-color: var(--dim-environmental); color: #0C1A3A; }
+.dim-occupational.selected  { background: var(--dim-occupational);  border-color: var(--dim-occupational);  color: #1A0820; }
+.dim-financial.selected     { background: var(--dim-financial);     border-color: var(--dim-financial);     color: #1A0820; }
+
+/* ============================================================
+   LANDING PAGE
+   ============================================================ */
+.page-landing {
+  min-height: 100vh;
+}
+
+.hero {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: var(--sp-6) 20px;
+  text-align: center;
+}
+
+.eyebrow {
+  font-family: 'Nunito', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: var(--sp-2);
+}
+
+.hero h1 {
+  font-size: 40px;
+  font-weight: 800;
+  color: var(--blue);
+  margin-bottom: var(--sp-2);
+  line-height: 1.1;
+}
+
+.hero-sub {
+  font-size: 17px;
+  color: var(--text-secondary);
+  max-width: 420px;
+  margin: 0 auto var(--sp-3);
+}
+
+.campus-select-card {
+  background: var(--bg-white);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  padding: var(--sp-3);
+  margin-top: var(--sp-4);
+  text-align: left;
+}
+
+.select-label {
+  display: block;
+  font-family: 'Nunito', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: var(--sp-1);
+}
+
+.campus-dropdown {
+  width: 100%;
+  font-family: 'Nunito Sans', sans-serif;
+  font-size: 16px;
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  border: 1.5px solid var(--border-med);
+  border-radius: var(--radius-md);
+  padding: 12px var(--sp-2);
+  margin-bottom: var(--sp-2);
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%234A6FA5' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 16px center;
+  cursor: pointer;
+}
+
+.campus-dropdown:focus {
+  outline: none;
+  border-color: var(--blue);
+}
+
+.select-hint {
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: var(--sp-1);
+}
+
+/* ============================================================
+   SUBMIT FLOW
+   ============================================================ */
+.page-submit {
+  min-height: 100vh;
+  background: var(--bg-primary);
+}
+
+.submit-header {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) 20px;
+  background: var(--bg-white);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.back-link {
+  font-family: 'Nunito', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.progress-bar {
+  flex: 1;
+  height: 6px;
+  background: var(--border);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--blue);
+  border-radius: var(--radius-pill);
+  transition: width 0.3s ease;
+}
+
+.progress-label {
+  font-family: 'Nunito', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Steps */
+.step {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: var(--sp-4) 20px var(--sp-6);
+}
+
+.step-eyebrow {
+  font-family: 'Nunito', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: var(--sp-1);
+}
+
+.step h2 {
+  color: var(--blue);
+  margin-bottom: 6px;
+}
+
+.step-sub {
+  font-size: 15px;
+  color: var(--text-muted);
+  margin-bottom: var(--sp-3);
+}
+
+.section-divider {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin: var(--sp-4) 0 var(--sp-1);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--border);
+}
+
+.field-label {
+  font-family: 'Nunito', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin: var(--sp-3) 0 var(--sp-1);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Archetype cards in submit flow */
+.archetype-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-1);
+  margin: var(--sp-2) 0;
+}
+
+.archetype-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: var(--sp-2);
+  border-radius: var(--radius-md);
+  border: 2px solid transparent;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s ease;
+  gap: 4px;
+}
+
+.archetype-card.guardian {
+  background: var(--arch-guardian);
+  color: var(--arch-guardian-text);
+}
+.archetype-card.warrior {
+  background: var(--arch-warrior);
+  color: var(--arch-warrior-text);
+}
+.archetype-card.healer {
+  background: var(--arch-healer);
+  color: var(--arch-healer-text);
+}
+.archetype-card.guide {
+  background: var(--arch-guide);
+  color: var(--arch-guide-text);
+}
+
+.archetype-card.selected {
+  border-color: var(--blue);
+  transform: scale(1.02);
+}
+
+.archetype-card .arch-emoji { font-size: 24px; }
+
+.archetype-card .arch-name {
+  font-family: 'Nunito', sans-serif;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.archetype-card .arch-phase {
+  font-family: 'Nunito', sans-serif;
+  font-size: 11px;
+  font-weight: 400;
+  font-style: italic;
+  opacity: 0.8;
+}
+
+.archetype-card .arch-desc {
+  font-size: 12px;
+  line-height: 1.4;
+  opacity: 0.85;
+  margin-top: 4px;
+}
+
+.discover-link {
+  display: block;
+  font-size: 13px;
+  color: var(--blue);
+  margin: var(--sp-2) 0 var(--sp-3);
+}
+
+/* Prompt toggle */
+.prompt-toggle {
+  display: flex;
+  gap: 4px;
+  background: var(--bg-white);
+  border: 1px solid var(--border-med);
+  border-radius: var(--radius-pill);
+  padding: 4px;
+  margin-bottom: var(--sp-2);
+}
+
+.toggle-btn {
+  flex: 1;
+  font-family: 'Nunito', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: var(--radius-pill);
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.toggle-btn.active {
+  background: var(--blue);
+  color: var(--text-white);
+}
+
+.prompt-dropdown {
+  width: 100%;
+  font-family: 'Nunito Sans', sans-serif;
+  font-size: 15px;
+  color: var(--text-primary);
+  background: var(--bg-white);
+  border: 1.5px solid var(--border-med);
+  border-radius: var(--radius-md);
+  padding: 12px var(--sp-2);
+  margin-bottom: var(--sp-2);
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.feedback-textarea {
+  width: 100%;
+  font-family: 'Nunito Sans', sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--text-primary);
+  background: var(--bg-white);
+  border: 1.5px solid var(--border-med);
+  border-radius: var(--radius-md);
+  padding: var(--sp-2);
+  min-height: 140px;
+  resize: vertical;
+  margin-bottom: 6px;
+}
+
+.feedback-textarea:focus {
+  outline: none;
+  border-color: var(--blue);
+}
+
+.char-count {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: right;
+  margin-bottom: var(--sp-2);
+}
+
+.instinct-tip {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin-bottom: var(--sp-3);
+}
+
+.optional-fields {
+  margin-bottom: var(--sp-3);
+}
+
+.year-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: var(--sp-2);
+}
+
+.major-input {
+  width: 100%;
+  font-family: 'Nunito Sans', sans-serif;
+  font-size: 15px;
+  color: var(--text-primary);
+  background: var(--bg-white);
+  border: 1.5px solid var(--border-med);
+  border-radius: var(--radius-md);
+  padding: 12px var(--sp-2);
+}
+
+.major-input:focus {
+  outline: none;
+  border-color: var(--blue);
+}
+
+/* Submitting screen */
+.submitting-screen {
+  text-align: center;
+  padding: var(--sp-10) 20px;
+}
+
+.submitting-icon {
+  font-size: 48px;
+  margin-bottom: var(--sp-3);
+}
+
+/* ============================================================
+   RECEIPT PAGE
+   ============================================================ */
+.page-receipt {
+  min-height: 100vh;
+  background: var(--bg-cream);
+}
+
+.receipt-confirm {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: var(--sp-6) 20px var(--sp-4);
+  text-align: center;
+}
+
+.confirm-icon {
+  width: 64px;
+  height: 64px;
+  background: var(--blue);
+  color: white;
+  font-size: 28px;
+  font-weight: 800;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto var(--sp-3);
+}
+
+.receipt-confirm h1 {
+  color: var(--blue);
+  margin-bottom: var(--sp-1);
+}
+
+.receipt-confirm p {
+  color: var(--text-secondary);
+  max-width: 380px;
+  margin: 0 auto;
+}
+
+.receipt-archetype {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 0 20px var(--sp-4);
+  text-align: center;
+}
+
+.receipt-label {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: var(--sp-1);
+}
+
+.arch-pill {
+  display: inline-block;
+  font-family: 'Nunito', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 10px 20px;
+  border-radius: var(--radius-pill);
+}
+
+.arch-pill.guardian { background: var(--arch-guardian); color: var(--arch-guardian-text); }
+.arch-pill.warrior  { background: var(--arch-warrior);  color: var(--arch-warrior-text); }
+.arch-pill.healer   { background: var(--arch-healer);   color: var(--arch-healer-text); }
+.arch-pill.guide    { background: var(--arch-guide);    color: var(--arch-guide-text); }
+
+.receipt-divider {
+  text-align: center;
+  padding: var(--sp-4) 20px;
+  font-family: 'Nunito', sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  border-top: 1px solid var(--border);
+  max-width: var(--max-width);
+  margin: 0 auto;
+}
+
+.receipt-divider em {
+  color: var(--blue);
+  font-style: normal;
+}
+
+/* CampusMind bridge — deep night section */
+.campusmind-bridge {
+  background: var(--bg-night);
+  padding: var(--sp-6) 20px;
+  text-align: center;
+}
+
+.bridge-logo {
+  font-family: 'Nunito', sans-serif;
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--gold);
+  margin-bottom: var(--sp-1);
+}
+
+.bridge-eyebrow {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.6);
+  margin-bottom: var(--sp-1);
+}
+
+.campusmind-bridge h2 {
+  color: var(--text-white);
+  font-size: 26px;
+  margin-bottom: var(--sp-2);
+}
+
+.campusmind-bridge .btn-gold {
+  max-width: 280px;
+  margin: var(--sp-2) auto;
+  display: block;
+}
+
+.bridge-sub {
+  font-size: 13px;
+  color: rgba(255,255,255,0.5);
+  margin-top: var(--sp-1);
+}
+
+/* ============================================================
+   CAMPUS PUBLIC PAGE
+   ============================================================ */
+.page-campus {
+  min-height: 100vh;
+}
+
+.campus-main {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: var(--sp-4) 20px var(--sp-6);
+}
+
+.campus-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-4);
+  flex-wrap: wrap;
+}
+
+.campus-header h1 {
+  font-size: 28px;
+  color: var(--blue);
+  margin-bottom: 4px;
+}
+
+.campus-meta {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.campus-stats {
+  display: flex;
+  gap: var(--sp-1);
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.stat-pill {
+  font-family: 'Nunito', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-white);
+  border: 1px solid var(--border-med);
+  color: var(--text-secondary);
+}
+
+/* Scores grid */
+.scores-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-4);
+}
+
+@media (min-width: 640px) {
+  .scores-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.scores-panel {
+  background: var(--bg-white);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  padding: var(--sp-3);
+}
+
+.panel-label {
+  font-family: 'Nunito', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: var(--sp-2);
+}
+
+/* Dimension bars */
+.dim-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  margin-bottom: 10px;
+}
+
+.dim-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  width: 120px;
+  flex-shrink: 0;
+  line-height: 1.3;
+}
+
+.dim-bar-bg {
+  flex: 1;
+  height: 8px;
+  background: var(--bg-primary);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+}
+
+.dim-bar-fill {
+  height: 100%;
+  border-radius: var(--radius-pill);
+  transition: width 0.6s ease;
+}
+
+/* Dimension bar fill colours */
+.dim-physical      { background: var(--dim-physical); }
+.dim-emotional     { background: var(--dim-emotional); }
+.dim-intellectual  { background: var(--dim-intellectual); }
+.dim-social        { background: var(--dim-social); }
+.dim-spiritual     { background: var(--dim-spiritual); }
+.dim-environmental { background: var(--dim-environmental); }
+.dim-occupational  { background: var(--dim-occupational); }
+.dim-financial     { background: var(--dim-financial); }
+
+.dim-count {
+  font-family: 'Nunito', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  width: 24px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/* Archetype cards on campus page */
+.arch-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: var(--sp-2);
+}
+
+.arch-card {
+  border-radius: var(--radius-md);
+  padding: var(--sp-2) 12px;
+  border: 2px solid transparent;
+  transition: transform 0.15s ease;
+}
+
+.arch-card.arch-guardian { background: var(--arch-guardian); color: var(--arch-guardian-text); }
+.arch-card.arch-warrior  { background: var(--arch-warrior);  color: var(--arch-warrior-text); }
+.arch-card.arch-healer   { background: var(--arch-healer);   color: var(--arch-healer-text); }
+.arch-card.arch-guide    { background: var(--arch-guide);    color: var(--arch-guide-text); }
+
+.arch-card.dominant {
+  border-color: rgba(255,255,255,0.5);
+  transform: scale(1.02);
+}
+
+.arch-card-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+  flex-wrap: wrap;
+}
+
+.arch-card .arch-emoji { font-size: 16px; }
+
+.arch-card .arch-name {
+  font-family: 'Nunito', sans-serif;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.dominant-badge {
+  font-family: 'Nunito', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: rgba(255,255,255,0.3);
+}
+
+.arch-dims {
+  font-size: 11px;
+  opacity: 0.75;
+  margin-bottom: 6px;
+  line-height: 1.3;
+}
+
+.arch-bar-bg {
+  height: 4px;
+  background: rgba(0,0,0,0.15);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+
+.arch-bar-fill {
+  height: 100%;
+  background: rgba(255,255,255,0.6);
+  border-radius: var(--radius-pill);
+  transition: width 0.6s ease;
+}
+
+.arch-pct {
+  font-family: 'Nunito', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.arch-insight {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: var(--sp-1);
+  line-height: 1.5;
+}
+
+/* Feed */
+.feed-section {
+  margin-bottom: var(--sp-4);
+}
+
+.feed-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--sp-2);
+  flex-wrap: wrap;
+  gap: var(--sp-1);
+}
+
+.filter-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.chip {
+  font-family: 'Nunito', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 14px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-med);
+  background: var(--bg-white);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.chip.active {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: var(--text-white);
+}
+
+.feed-entry {
+  background: var(--bg-white);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  padding: var(--sp-2) var(--sp-3);
+  margin-bottom: var(--sp-1);
+}
+
+.feed-meta {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: var(--sp-1);
+}
+
+.meta-pill {
+  font-family: 'Nunito', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-primary);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+
+.feed-text {
+  font-size: 15px;
+  line-height: 1.65;
+  color: var(--text-primary);
+  margin-bottom: var(--sp-1);
+}
+
+.feed-tags {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.feed-tag {
+  font-family: 'Nunito', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+}
+
+/* Dimension feed tags */
+.dim-tag-physical      { background: #FBE9E7; color: #8D3D2A; }
+.dim-tag-emotional     { background: #FFF3E0; color: #8D5A1A; }
+.dim-tag-intellectual  { background: #FFFDE7; color: #7A6B00; }
+.dim-tag-social        { background: #E8F5E9; color: #2A6B35; }
+.dim-tag-spiritual     { background: #E0F7FA; color: #1A5C6B; }
+.dim-tag-environmental { background: #E8EAF6; color: #2A3580; }
+.dim-tag-occupational  { background: #F3E5F5; color: #5A2A70; }
+.dim-tag-financial     { background: #FCE4EC; color: #7A1A3A; }
+
+.arch-tag {
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+}
+
+.empty-feed {
+  font-size: 15px;
+  color: var(--text-muted);
+  text-align: center;
+  padding: var(--sp-4);
+}
+
+/* Campus CTA strip */
+.campus-cta {
+  background: var(--bg-white);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  padding: var(--sp-3);
+  text-align: center;
+}
+
+.campus-cta p {
+  color: var(--text-secondary);
+  margin-bottom: var(--sp-2);
+}
+
+.campus-cta .btn-primary {
+  max-width: 280px;
+  margin: 0 auto;
+  display: block;
+}
+
+/* Empty state */
+.empty-state {
+  text-align: center;
+  padding: var(--sp-6) 20px;
+}
+
+.empty-state p {
+  color: var(--text-muted);
+  margin-bottom: var(--sp-3);
+}
+
+.empty-state .btn-primary {
+  max-width: 280px;
+  margin: 0 auto;
+}
+
+/* ============================================================
+   ADMIN PAGE
+   ============================================================ */
+.page-admin {
+  min-height: 100vh;
+}
+
+.admin-main {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: var(--sp-4) 20px;
+}
+
+.admin-count {
+  font-family: 'Nunito', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.admin-row {
+  background: var(--bg-white);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  padding: var(--sp-2) var(--sp-3);
+  margin-bottom: var(--sp-2);
+}
+
+.admin-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: var(--sp-1);
+}
+
+.meta-date {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+.admin-text {
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--text-primary);
+  margin-bottom: var(--sp-2);
+  padding: var(--sp-2);
+  background: var(--bg-primary);
+  border-radius: var(--radius-sm);
+}
+
+.admin-actions {
+  display: flex;
+  gap: var(--sp-1);
+}
+
+.btn-approve {
+  font-family: 'Nunito', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 8px 20px;
+  border-radius: var(--radius-pill);
+  border: none;
+  background: #E8F5E9;
+  color: #2A6B35;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.btn-approve:hover { background: #C8E6C9; }
+
+.btn-flag {
+  font-family: 'Nunito', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 8px 20px;
+  border-radius: var(--radius-pill);
+  border: none;
+  background: #FCE4EC;
+  color: #7A1A3A;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.btn-flag:hover { background: #F8BBD0; }
+
+/* ============================================================
+   404 PAGE
+   ============================================================ */
+.page-404 {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: var(--sp-10) 20px;
+  text-align: center;
+}
+
+.page-404 h1 {
+  color: var(--blue);
+  margin-bottom: var(--sp-2);
+}
+
+.page-404 p {
+  color: var(--text-muted);
+  margin-bottom: var(--sp-4);
+}
+
+.page-404 .btn-primary {
+  max-width: 200px;
+  margin: 0 auto;
+}
+
+/* ============================================================
+   RESPONSIVE — Tablet and up
+   ============================================================ */
+@media (min-width: 480px) {
+  h1 { font-size: 40px; }
+  h2 { font-size: 28px; }
+
+  .hero h1 { font-size: 48px; }
+
+  .archetype-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (min-width: 768px) {
+  .campus-header h1 { font-size: 34px; }
+
+  .scores-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* ============================================================
+   FAVICON placeholder — prevents 404 noise
+   ============================================================ */

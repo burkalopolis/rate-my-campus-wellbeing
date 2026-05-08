@@ -460,7 +460,7 @@ function renderSubmitFlow(campus) {
       <div class="archetype-grid" id="archetype-select">
         <button class="archetype-card guardian" data-value="guardian">
           <span class="arch-emoji">🏔️</span>
-          <span class="arch-name">Guardian</span>
+          <span class="arch-name">Architect</span>
           <span class="arch-phase">Prepare</span>
           <span class="arch-desc">You notice things before they become problems.</span>
         </button>

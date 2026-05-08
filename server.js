@@ -454,6 +454,7 @@ function renderSubmitFlow(campus) {
         <button class="bubble" data-value="graduate">Graduate</button>
         <button class="bubble" data-value="intramurals">Intramurals</button>
         <button class="bubble" data-value="clubs">Clubs</button>
+        <button class="bubble" data-value="on-campus-living">On Campus Living</button>
         <button class="bubble" data-value="undocumented">Undocumented/DACA</button>
       </div>
 
@@ -887,7 +888,7 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
     </div>`
   }).join('')
 
-  const archetypeCards = ['guardian','warrior','healer','guide'].map(key => {
+  const archetypeCards = ['guardian','warrior','guide','healer'].map(key => {
     const score = archetypeScores.find(a => a.archetype_tag === key)
     const label = archLabels[key]
     const pct   = score?.pct_of_total || 0

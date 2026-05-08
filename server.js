@@ -1044,27 +1044,25 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
     </div>`
   }).join('')
 
-  const feedItems = submissions.map(s => `
-    <div class="feed-entry" data-dim="${s.dimension_tag}">
-      <div class="feed-meta">
-        ${s.year_in_school ? `<span class="meta-pill">${s.year_in_school} year</span>` : ''}
-        ${s.major ? `<span class="meta-pill">${s.major}</span>` : ''}
-        <span class="meta-pill">${campus.name}</span>
-      ${s.image_url ? `<a href="${s.image_url}" target="_blank" rel="noopener"><img src="${s.image_url}" class="feed-image-thumb" alt="Student photo" loading="lazy"></a>` : ""}
-      </div>
-      <p class="feed-text">${escapeHtml(s.feedback_text)}</p>
-      <div class="feed-tags">
-        <span class="feed-tag dim-tag-${s.dimension_tag}">
-          ${dimLabels[s.dimension_tag] || s.dimension_tag}
-        </span>
-        ${s.archetype_derived ? `
-        <span class="feed-tag arch-tag">
-          ${archLabels[s.archetype_derived]?.emoji}
-          ${archLabels[s.archetype_derived]?.name}
-        </span>` : ''}
-      </div>
-    </div>
-  `).join('')
+  const feedItems = submissions.map(s => {
+    const communityTags = s.submitters?.community_tags || []
+    const subjectLabel = s.subject_tag ? s.subject_tag.replace(/-/g,' ') : ''
+    return [
+      '<div class="feed-entry" data-dim="' + (s.dimension_tag||'') + '" data-community="' + communityTags.join(',') + '">',
+      '<div class="feed-meta">',
+      s.year_in_school ? '<span class="meta-pill">' + s.year_in_school + ' year</span>' : '',
+      s.major ? '<span class="meta-pill">' + escapeHtml(s.major) + '</span>' : '',
+      communityTags.length ? '<span class="meta-pill">' + communityTags.join(', ') + '</span>' : '',
+      '</div>',
+      s.image_url ? '<img src="' + escapeHtml(s.image_url) + '" class="feed-image-thumb" alt="Student photo" loading="lazy">' : '',
+      '<p class="feed-text">' + escapeHtml(s.feedback_text) + '</p>',
+      '<div class="feed-tags">',
+      subjectLabel ? '<span class="feed-tag subject-tag">' + escapeHtml(subjectLabel) + '</span>' : '',
+      s.dimension_tag ? '<span class="feed-tag dim-tag-' + s.dimension_tag + '">' + (dimLabels[s.dimension_tag] || s.dimension_tag) + '</span>' : '',
+      s.archetype_derived && archLabels[s.archetype_derived] ? '<span class="feed-tag arch-tag">' + archLabels[s.archetype_derived].emoji + ' ' + archLabels[s.archetype_derived].name + '</span>' : '',
+      '</div></div>'
+    ].join('')
+  }).join('')
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -1175,30 +1173,28 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
 }
 
 function renderAdminQueue(pending) {
-  const rows = pending.map(s => `
-    <div class="admin-row" id="row-${s.id}">
-      <div class="admin-meta">
-        <strong>${s.campuses?.name || 'Unknown'}</strong>
-        <span class="meta-pill">${s.dimension_tag}</span>
-        <span class="meta-pill">${s.archetype_derived || '—'}</span>
-        <span class="meta-pill">${s.year_in_school || '—'}</span>
-        <span class="meta-pill">${s.major || '—'}</span>
-        ${s.submitters?.community_tags?.length ? `<span class="meta-pill">${s.submitters.community_tags.join(", ")}</span>` : ""}
-        <span class="meta-date">
-          ${new Date(s.created_at).toLocaleDateString()}
-        </span>
-      </div>
-      <p class="admin-text">${escapeHtml(s.feedback_text)}</p>
-      <div class="admin-actions">
-        <button class="btn-approve" onclick="approve('${s.id}')">
-          ✓ Approve
-        </button>
-        <button class="btn-flag" onclick="flag('${s.id}')">
-          ✗ Flag
-        </button>
-      </div>
-    </div>
-  `).join('')
+  const rows = pending.map(s => {
+    const communityTags = s.submitters?.community_tags || []
+    return [
+      '<div class="admin-row" id="row-' + s.id + '">',
+      '<div class="admin-meta">',
+      '<strong>' + escapeHtml(s.campuses?.name || 'Unknown') + '</strong>',
+      s.subject_tag ? '<span class="meta-pill">' + escapeHtml(s.subject_tag) + '</span>' : '',
+      s.dimension_tag ? '<span class="meta-pill">' + escapeHtml(s.dimension_tag) + '</span>' : '',
+      s.archetype_derived ? '<span class="meta-pill">' + escapeHtml(s.archetype_derived) + '</span>' : '',
+      s.year_in_school ? '<span class="meta-pill">' + escapeHtml(s.year_in_school) + ' year</span>' : '',
+      s.major ? '<span class="meta-pill">' + escapeHtml(s.major) + '</span>' : '',
+      communityTags.length ? '<span class="meta-pill">' + communityTags.join(', ') + '</span>' : '',
+      '<span class="meta-date">' + new Date(s.created_at).toLocaleDateString('en-US', {timeZone: 'America/Los_Angeles'}) + '</span>',
+      '</div>',
+      s.image_url ? '<img src="' + escapeHtml(s.image_url) + '" class="admin-image-thumb" alt="Submission image">' : '',
+      '<p class="admin-text">' + escapeHtml(s.feedback_text) + '</p>',
+      '<div class="admin-actions">',
+      '<button class="btn-approve" onclick="approve("' + s.id + '")">✓ Approve</button>',
+      '<button class="btn-flag" onclick="flag("' + s.id + '")">✗ Flag</button>',
+      '</div></div>'
+    ].join('')
+  }).join('')
 
   return `<!DOCTYPE html>
 <html lang="en">

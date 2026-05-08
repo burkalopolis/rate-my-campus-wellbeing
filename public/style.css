@@ -1542,3 +1542,10 @@ img { max-width: 100%; display: block; }
 .image-preview-thumb { width: 100%; max-height: 220px; object-fit: cover; border-radius: var(--radius-md); border: 1px solid var(--border); display: block; margin-bottom: 8px; }
 .image-remove-btn { font-family: 'Nunito', sans-serif; font-size: 12px; font-weight: 600; color: var(--text-muted); background: none; border: 1px solid var(--border-med); border-radius: var(--radius-pill); padding: 4px 12px; cursor: pointer; }
 .image-remove-btn:hover { background: #FCE4EC; color: #7A1A3A; border-color: #F8BBD0; }
+
+/* ── Subject tag in feed ──────────────────────────────────── */
+.subject-tag {
+  background: #EEF2F7;
+  color: #4A6FA5;
+  border: 1px solid #C5D3E8;
+}

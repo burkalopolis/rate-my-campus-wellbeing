@@ -1,4 +1,5 @@
 {
+<<<<<<< HEAD
     "name": "rate-my-campus-wellbeing",
     "version": "1.0.0",
     "description": "Student wellbeing feedback platform for UC and CSU campuses",
@@ -17,4 +18,24 @@
           "express-rate-limit": "^7.1.5",
           "multer": "^1.4.5-lts.1"
     }
+=======
+  "name": "rate-my-campus-wellbeing",
+  "version": "1.0.0",
+  "description": "Student wellbeing feedback platform for UC and CSU campuses",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "build": "echo Build complete"
+  },
+  "dependencies": {
+    "@octokit/rest": "^21.1.1",
+    "@replit/connectors-sdk": "^0.4.0",
+    "@supabase/supabase-js": "^2.39.0",
+    "express": "^4.18.2",
+    "express-rate-limit": "^7.1.5",
+    "multer": "^2.1.1"
+  }
+>>>>>>> 8a0c05e (feat: image uploads, browse section, context carry-over, feed thumbnails, filter chip fix)
 }

@@ -6,6 +6,7 @@
 import express from 'express'
 import rateLimit from 'express-rate-limit'
 import { createClient } from '@supabase/supabase-js'
+import multer from 'multer'
 import path from 'path'
 import { fileURLToPath } from 'url'
 
@@ -31,6 +32,16 @@ app.set("trust proxy", 1)
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 app.use(express.static(path.join(__dirname, 'public')))
+
+// ── Multer — memory storage, upload to Supabase Storage ────
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const allowed = ["image/jpeg", "image/png", "image/gif"]
+    allowed.includes(file.mimetype) ? cb(null, true) : cb(new Error("Only jpg/png/gif allowed"), false)
+  }
+})
 
 // ── Rate limiting ───────────────────────────────────────────
 // Prevent spam submissions — 10 submissions per IP per hour
@@ -134,6 +145,7 @@ app.get('/campus/:slug', async (req, res) => {
       subject_tag,
       year_in_school,
       major,
+      image_url,
       created_at,
       submitters (
         community_tags,
@@ -179,6 +191,7 @@ app.get('/admin', requireAdmin, async (req, res) => {
       subject_tag,
       year_in_school,
       major,
+      image_url,
       created_at,
       flagged,
       campuses ( name, slug )
@@ -196,7 +209,7 @@ app.get('/admin', requireAdmin, async (req, res) => {
 // ============================================================
 
 // ── POST /api/submit ────────────────────────────────────────
-app.post('/api/submit', submitLimiter, async (req, res) => {
+app.post('/api/submit', submitLimiter, upload.single('image'), async (req, res) => {
   const {
     campus_id,
     community_tags,
@@ -232,6 +245,20 @@ app.post('/api/submit', submitLimiter, async (req, res) => {
   }
 
   try {
+    // 0. Upload image if provided
+    let image_url = null
+    if (req.file) {
+      const ext = req.file.mimetype === "image/gif" ? "gif" : req.file.mimetype === "image/png" ? "png" : "jpg"
+      const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+      const { error: uploadError } = await supabaseAdmin.storage
+        .from("submission-images")
+        .upload(filename, req.file.buffer, { contentType: req.file.mimetype, upsert: false })
+      if (!uploadError) {
+        const { data: urlData } = supabaseAdmin.storage.from("submission-images").getPublicUrl(filename)
+        image_url = urlData.publicUrl
+      } else { console.warn("Image upload failed:", uploadError.message) }
+    }
+
     // 1. Create submitter record
     const { data: submitter, error: submitterError } = await supabase
       .from('submitters')
@@ -259,6 +286,7 @@ app.post('/api/submit', submitLimiter, async (req, res) => {
         feedback_text: feedback_text.trim(),
         year_in_school: year_in_school || null,
         major: major || null,
+        image_url,
         approved: false
       })
       .select('id, archetype_derived')
@@ -338,10 +366,16 @@ function renderLanding(uc, csu, other) {
   const ucOptions = uc.map(c =>
     `<option value="${c.id}" data-slug="${c.slug}">${c.name} — ${c.city}</option>`
   ).join('')
-
   const csuOptions = csu.map(c =>
     `<option value="${c.id}" data-slug="${c.slug}">${c.name} — ${c.city}</option>`
-  ).join('')
+  ).join("")
+  const browseCards = [...uc, ...csu].map(c =>
+    `<a class="browse-card" href="/campus/${c.slug}">
+      <span class="browse-card-system">${c.system}</span>
+      <span class="browse-card-name">${c.name}</span>
+      <span class="browse-card-city">${c.city || ""}</span>
+    </a>`
+  ).join("")
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -411,6 +445,11 @@ function renderLanding(uc, csu, other) {
       if (slug) window.location.href = '/submit?campus=' + slug
     })
   </script>
+  <section class="browse-section" id="browse">
+    <h2>Browse All Campuses</h2>
+    <p class="browse-sub">See how UC and CSU campuses score across 8 wellness dimensions.</p>
+    <div class="browse-grid">${browseCards}</div>
+  </section>
 </body>
 </html>`
 }
@@ -433,6 +472,10 @@ function renderSubmitFlow(campus) {
       </div>
       <span class="progress-label" id="progress-label">Step 1 of 4</span>
     </header>
+    <!-- Context bar -->
+    <div class="context-bar" id="context-bar" style="display:none">
+      <div class="context-items" id="context-items"></div>
+    </div>
 
     <!-- Step 1: Who are you? -->
     <div class="step" id="step-1">
@@ -502,7 +545,7 @@ function renderSubmitFlow(campus) {
     <!-- Step 2: What are you rating? -->
     <div class="step hidden" id="step-2">
       <p class="step-eyebrow">Your feedback</p>
-      <h2>What are you speaking to?</h2>
+      <h2 id="step2-heading">What are you speaking to?</h2>
       <p class="step-sub">Pick one subject and one dimension.</p>
 
       <h3 class="field-label">Subject <span class="field-hint">(pick up to 2)</span></h3>
@@ -536,7 +579,7 @@ function renderSubmitFlow(campus) {
     <!-- Step 3: Your feedback -->
     <div class="step hidden" id="step-3">
       <p class="step-eyebrow">Your voice</p>
-      <h2>What's the wellbeing experience really like?</h2>
+      <h2 id="step3-heading">What's the wellbeing experience really like?</h2>
 
       <div class="prompt-toggle">
         <button class="toggle-btn active" id="toggle-free">Write freely</button>
@@ -573,6 +616,14 @@ function renderSubmitFlow(campus) {
 
       <p class="instinct-tip">💡 Go with your first instinct.
          Honest beats polished every time.</p>
+      <div class="image-upload-wrap">
+        <label class="image-upload-label" id="image-label">📷 Add a photo <span class="field-hint">(optional · jpg/png/gif · max 5MB)</span></label>
+        <input type="file" id="image-input" class="image-input-hidden" accept="image/jpeg,image/png,image/gif">
+        <div id="image-preview-wrap" class="hidden">
+          <img id="image-preview" class="image-preview-thumb" alt="Preview">
+          <button id="image-remove" class="image-remove-btn" type="button">✕ Remove</button>
+        </div>
+      </div>
 
       <div class="optional-fields">
         <p class="field-label">A little more context (optional)</p>
@@ -656,6 +707,17 @@ function renderSubmitFlow(campus) {
       document.getElementById('progress-fill').style.width = pct + '%'
       document.getElementById('progress-label').textContent =
         'Step ' + n + ' of 4'
+      updateContextBar()
+      if (n === 2 && state.campus_name) {
+        document.getElementById("step2-heading").textContent = state.campus_name
+      }
+      if (n === 3) {
+        const parts = []
+        if (state.campus_name) parts.push(state.campus_name)
+        if (state.dimension_tags?.length) parts.push(state.dimension_tags.join(" + "))
+        if (state.subject_tags?.length) parts.push(state.subject_tags.join(" + "))
+        document.getElementById("step3-heading").textContent = parts.join(" · ") || "What's the wellbeing experience really like?"
+      }
       window.scrollTo(0, 0)
     }
 
@@ -779,6 +841,28 @@ function renderSubmitFlow(campus) {
       state.feedback_text = textarea.value
       submitBtn.disabled = len < 30
     })
+    // ── Image upload ───────────────────────────────────────
+    const imageInput = document.getElementById("image-input")
+    const imagePreviewWrap = document.getElementById("image-preview-wrap")
+    const imagePreview = document.getElementById("image-preview")
+    const imageRemove = document.getElementById("image-remove")
+    const imageLabel = document.getElementById("image-label")
+    imageLabel.addEventListener("click", () => imageInput.click())
+    imageInput.addEventListener("change", () => {
+      const file = imageInput.files[0]
+      if (!file) return
+      if (file.size > 5 * 1024 * 1024) { alert("Image must be under 5MB"); imageInput.value = ""; return }
+      state.imageFile = file
+      imagePreview.src = URL.createObjectURL(file)
+      imagePreviewWrap.classList.remove("hidden")
+      imageLabel.style.display = "none"
+    })
+    imageRemove.addEventListener("click", () => {
+      state.imageFile = null
+      imageInput.value = ""
+      imagePreviewWrap.classList.add("hidden")
+      imageLabel.style.display = ""
+    })
 
     // ── Year pills ─────────────────────────────────────────
     document.getElementById('year-select')
@@ -802,11 +886,19 @@ function renderSubmitFlow(campus) {
       goToStep(4)
 
       try {
-        const res = await fetch('/api/submit', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(state)
-        })
+        const fd = new FormData()
+        fd.append("campus_id", state.campus_id)
+        fd.append("subject_tag", state.subject_tag || "")
+        fd.append("dimension_tag", state.dimension_tag || "")
+        fd.append("feedback_text", state.feedback_text)
+        fd.append("prompt_mode", state.prompt_mode)
+        if (state.prompt_used) fd.append("prompt_used", state.prompt_used)
+        if (state.year_in_school) fd.append("year_in_school", state.year_in_school)
+        if (state.major) fd.append("major", state.major)
+        if (state.archetype_self) fd.append("archetype_self", state.archetype_self)
+        ;(state.community_tags || []).forEach(t => fd.append("community_tags", t))
+        if (state.imageFile) fd.append("image", state.imageFile)
+        const res = await fetch("/api/submit", { method: "POST", body: fd })
         const data = await res.json()
 
         if (data.success) {
@@ -957,6 +1049,7 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
         ${s.year_in_school ? `<span class="meta-pill">${s.year_in_school} year</span>` : ''}
         ${s.major ? `<span class="meta-pill">${s.major}</span>` : ''}
         <span class="meta-pill">${campus.name}</span>
+      ${s.image_url ? `<a href="${s.image_url}" target="_blank" rel="noopener"><img src="${s.image_url}" class="feed-image-thumb" alt="Student photo" loading="lazy"></a>` : ""}
       </div>
       <p class="feed-text">${escapeHtml(s.feedback_text)}</p>
       <div class="feed-tags">
@@ -1041,7 +1134,7 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
           <div class="filter-chips">
             <button class="chip active" data-filter="all">All</button>
             <button class="chip" data-filter="emotional">Emotional</button>
-            <button class="chip" data-filter="academic">intellectual</button>
+            <button class="chip" data-filter="intellectual">Academic</button>
             <button class="chip" data-filter="social">Social</button>
             <button class="chip" data-filter="financial">Financial</button>
           </div>

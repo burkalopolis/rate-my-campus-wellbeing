@@ -1433,3 +1433,112 @@ img { max-width: 100%; display: block; }
     grid-template-columns: 1fr;
   }
 }
+
+/* ── Browse card inner elements ───────────────────────────── */
+.browse-card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.browse-card-system {
+  font-family: 'Nunito', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--blue);
+  opacity: 0.7;
+}
+.browse-card-name {
+  font-family: 'Nunito', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+.browse-card-city {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* ── Feed image thumbnails ────────────────────────────────── */
+.feed-image-thumb {
+  width: 100%;
+  max-height: 200px;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  display: block;
+  margin-bottom: var(--sp-1);
+}
+
+/* ── Image upload — Step 3 ────────────────────────────────── */
+.image-upload-wrap {
+  margin: var(--sp-2) 0 var(--sp-3);
+}
+.image-upload-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-family: 'Nunito', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--blue);
+  padding: 10px 16px;
+  border: 1.5px dashed var(--border-med);
+  border-radius: var(--radius-md);
+  background: var(--bg-white);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.image-upload-label:hover {
+  border-color: var(--blue);
+  background: var(--bg-primary);
+}
+.image-input-hidden {
+  display: none;
+}
+.image-preview-thumb {
+  width: 100%;
+  max-height: 220px;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  display: block;
+  margin-bottom: 8px;
+}
+.image-remove-btn {
+  font-family: 'Nunito', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: none;
+  border: 1px solid var(--border-med);
+  border-radius: var(--radius-pill);
+  padding: 4px 12px;
+  cursor: pointer;
+}
+.image-remove-btn:hover {
+  background: #FCE4EC;
+  color: #7A1A3A;
+  border-color: #F8BBD0;
+}
+
+/* Browse card inner elements */
+.browse-card { display: flex; flex-direction: column; gap: 2px; }
+.browse-card-system { font-family: 'Nunito', sans-serif; font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--blue); opacity: 0.7; }
+.browse-card-name { font-family: 'Nunito', sans-serif; font-size: 13px; font-weight: 600; color: var(--text-primary); line-height: 1.3; }
+.browse-card-city { font-size: 12px; color: var(--text-muted); }
+
+/* Feed image thumbnails */
+.feed-image-thumb { width: 100%; max-height: 200px; object-fit: cover; border-radius: var(--radius-md); border: 1px solid var(--border); display: block; margin-bottom: var(--sp-1); }
+
+/* Image upload Step 3 */
+.image-upload-wrap { margin: var(--sp-2) 0 var(--sp-3); }
+.image-upload-label { display: flex; align-items: center; justify-content: center; gap: 6px; font-family: 'Nunito', sans-serif; font-size: 14px; font-weight: 600; color: var(--blue); padding: 10px 16px; border: 1.5px dashed var(--border-med); border-radius: var(--radius-md); background: var(--bg-white); cursor: pointer; }
+.image-upload-label:hover { border-color: var(--blue); background: var(--bg-primary); }
+.image-input-hidden { display: none; }
+.image-preview-thumb { width: 100%; max-height: 220px; object-fit: cover; border-radius: var(--radius-md); border: 1px solid var(--border); display: block; margin-bottom: 8px; }
+.image-remove-btn { font-family: 'Nunito', sans-serif; font-size: 12px; font-weight: 600; color: var(--text-muted); background: none; border: 1px solid var(--border-med); border-radius: var(--radius-pill); padding: 4px 12px; cursor: pointer; }
+.image-remove-btn:hover { background: #FCE4EC; color: #7A1A3A; border-color: #F8BBD0; }

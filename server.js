@@ -474,7 +474,7 @@ function renderSubmitFlow(campus) {
           <span class="arch-emoji">💦</span>
           <span class="arch-name">Healer</span>
           <span class="arch-phase">Recover</span>
-          <span class="arch-desc">You know how to come back.</span>
+          <span class="arch-desc">You know how to bounce back.</span>
         </button>
         <button class="archetype-card guide" data-value="guide">
           <span class="arch-emoji">🍃</span>

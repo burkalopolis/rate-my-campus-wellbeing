@@ -485,7 +485,7 @@ function renderSubmitFlow(campus) {
       </div>
 
       <a class="discover-link"
-         href="https://campusmind.org"
+         href="https://www.campusmind.org/demo"
          target="_blank">
         Not sure? Discover your archetype at CampusMind →
       </a>
@@ -780,7 +780,7 @@ function renderSubmitFlow(campus) {
 
 function renderReceipt(campusName, dimension, archetype) {
   const archetypeLabels = {
-    guardian: { emoji: '🏔️', name: 'The Guardian', phase: 'Prepare' },
+    guardian: { emoji: '🏔️', name: 'The Architect', phase: 'Prepare' },
     warrior:  { emoji: '⚡', name: 'The Warrior',  phase: 'Respond' },
     healer:   { emoji: '💦', name: 'The Healer',   phase: 'Recover' },
     guide:    { emoji: '🍃', name: 'The Guide',    phase: 'Anticipate' }
@@ -826,7 +826,7 @@ function renderReceipt(campusName, dimension, archetype) {
         <span class="trust-pill light">~3 Minutes</span>
         <span class="trust-pill light">No Login</span>
       </div>
-      <a href="https://campusmind.org"
+      <a href="https://www.campusmind.org/demo"
          target="_blank"
          class="btn-primary btn-gold">
         Find Your Profile →
@@ -843,7 +843,7 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
   const dominant = archetypeScores.find(a => a.is_dominant)
 
   const archLabels = {
-    guardian: { emoji: '🏔️', name: 'Guardian', dims: 'Academic + Career' },
+    guardian: { emoji: '🏔️', name: 'Architect', dims: 'Academic + Career' },
     warrior:  { emoji: '⚡',  name: 'Warrior',  dims: 'Emotional + Social' },
     healer:   { emoji: '💦',  name: 'Healer',   dims: 'Physical + Financial' },
     guide:    { emoji: '🍃',  name: 'Guide',    dims: 'Spiritual + Environment' }

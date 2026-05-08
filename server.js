@@ -628,6 +628,27 @@ function renderSubmitFlow(campus) {
     }
 
     // ── Step navigation ────────────────────────────────────
+    function updateContextBar() {
+      const bar = document.getElementById('context-bar')
+      const items = document.getElementById('context-items')
+      const parts = []
+
+      if (state.campus_name) parts.push({ label: state.campus_name, type: 'campus' })
+      if (state.community_tags?.length) parts.push({ label: state.community_tags.join(', '), type: 'community' })
+      if (state.archetype_self) parts.push({ label: state.archetype_self.charAt(0).toUpperCase() + state.archetype_self.slice(1), type: 'archetype' })
+      if (state.subject_tags?.length) parts.push({ label: state.subject_tags.join(' + '), type: 'subject' })
+      if (state.dimension_tags?.length) parts.push({ label: state.dimension_tags.join(' + '), type: 'dimension' })
+
+      if (parts.length > 0) {
+        bar.style.display = 'block'
+        items.innerHTML = parts.map(p =>
+          '<span class="context-item context-' + p.type + '">' + p.label + '</span>'
+        ).join('')
+      } else {
+        bar.style.display = 'none'
+      }
+    }
+
     function goToStep(n) {
       document.querySelectorAll('.step').forEach(s => s.classList.add('hidden'))
       document.getElementById('step-' + n).classList.remove('hidden')

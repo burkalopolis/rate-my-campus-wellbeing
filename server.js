@@ -696,30 +696,52 @@ function renderSubmitFlow(campus) {
       .addEventListener('click', e => {
         const btn = e.target.closest('.bubble')
         if (!btn) return
-        document.querySelectorAll('#subject-tags .bubble')
-          .forEach(b => b.classList.remove('selected'))
-        btn.classList.add('selected')
-        state.subject_tag = btn.dataset.value
+        const isOverall = btn.dataset.value === 'campus-overall'
+        const hasOverall = !!document.querySelector('#subject-tags .bubble[data-value="campus-overall"].selected')
+        const already = btn.classList.contains('selected')
+        const count = document.querySelectorAll('#subject-tags .bubble.selected').length
+        if (already) {
+          btn.classList.remove('selected')
+        } else if (isOverall) {
+          document.querySelectorAll('#subject-tags .bubble').forEach(b => b.classList.remove('selected'))
+          btn.classList.add('selected')
+        } else if (hasOverall) {
+          return
+        } else if (count < 2) {
+          btn.classList.add('selected')
+        }
+        state.subject_tags = Array.from(document.querySelectorAll('#subject-tags .bubble.selected')).map(b => b.dataset.value)
+        state.subject_tag = state.subject_tags[0] || null
         checkStep2()
       })
-
-    // ── Single-select dimension ────────────────────────────
+    // ── Multi-select dimension (Holistic exclusive) ────────
     document.getElementById('dimension-tags')
       .addEventListener('click', e => {
         const btn = e.target.closest('.bubble')
         if (!btn) return
-        document.querySelectorAll('#dimension-tags .bubble')
-          .forEach(b => b.classList.remove('selected'))
-        btn.classList.add('selected')
-        state.dimension_tag = btn.dataset.value
+        const isHolistic = btn.dataset.value === 'holistic'
+        const hasHolistic = !!document.querySelector('#dimension-tags .bubble[data-value="holistic"].selected')
+        const already = btn.classList.contains('selected')
+        const count = document.querySelectorAll('#dimension-tags .bubble.selected').length
+        if (already) {
+          btn.classList.remove('selected')
+        } else if (isHolistic) {
+          document.querySelectorAll('#dimension-tags .bubble').forEach(b => b.classList.remove('selected'))
+          btn.classList.add('selected')
+        } else if (hasHolistic) {
+          return
+        } else if (count < 2) {
+          btn.classList.add('selected')
+        }
+        state.dimension_tags = Array.from(document.querySelectorAll('#dimension-tags .bubble.selected')).map(b => b.dataset.value)
+        state.dimension_tag = state.dimension_tags[0] || null
         checkStep2()
       })
-
     function checkStep2() {
-      document.getElementById('step2-next').disabled =
-        !(state.subject_tag && state.dimension_tag)
+      const hasSubject = state.subject_tags?.length > 0 || state.subject_tag
+      const hasDimension = state.dimension_tags?.length > 0 || state.dimension_tag
+      document.getElementById('step2-next').disabled = !(hasSubject && hasDimension)
     }
-
     // ── Prompt toggle ──────────────────────────────────────
     document.getElementById('toggle-free').addEventListener('click', () => {
       state.prompt_mode = 'free'

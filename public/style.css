@@ -1315,3 +1315,40 @@ img { max-width: 100%; display: block; }
     align-items: flex-start;
   }
 }
+
+/* ── Holistic dimension bubble ────────────────────────────── */
+.dim-holistic {
+  background: linear-gradient(135deg, 
+    var(--dim-physical) 0%, 
+    var(--dim-emotional) 25%,
+    var(--dim-social) 50%,
+    var(--dim-spiritual) 75%,
+    var(--dim-financial) 100%
+  );
+  color: #1A1400;
+  font-weight: 700;
+  border-color: transparent;
+}
+
+.dim-holistic.selected {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+  opacity: 1;
+}
+
+/* ── Field hint ───────────────────────────────────────────── */
+.field-hint {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-muted);
+  text-transform: none;
+  letter-spacing: 0;
+  margin-left: 4px;
+}
+
+/* ── Multi-select max indicator ───────────────────────────── */
+.bubble:disabled,
+.bubble.maxed {
+  opacity: 0.4;
+  cursor: not-allowed;
+}

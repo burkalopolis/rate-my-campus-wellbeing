@@ -452,6 +452,8 @@ function renderSubmitFlow(campus) {
         <button class="bubble" data-value="veteran">Veteran</button>
         <button class="bubble" data-value="commuter">Commuter</button>
         <button class="bubble" data-value="graduate">Graduate</button>
+        <button class="bubble" data-value="intramurals">Intramurals</button>
+        <button class="bubble" data-value="clubs">Clubs</button>
         <button class="bubble" data-value="undocumented">Undocumented/DACA</button>
       </div>
 
@@ -502,7 +504,7 @@ function renderSubmitFlow(campus) {
       <h2>What are you speaking to?</h2>
       <p class="step-sub">Pick one subject and one dimension.</p>
 
-      <h3 class="field-label">Subject</h3>
+      <h3 class="field-label">Subject <span class="field-hint">(pick up to 2)</span></h3>
       <div class="bubble-grid single" id="subject-tags">
         <button class="bubble" data-value="campus-overall">Campus Overall</button>
         <button class="bubble" data-value="department-major">Department / Major</button>
@@ -512,7 +514,7 @@ function renderSubmitFlow(campus) {
         <button class="bubble" data-value="transition-experience">Transition Experience</button>
       </div>
 
-      <h3 class="field-label">Wellness Dimension</h3>
+      <h3 class="field-label">Wellness Dimension <span class="field-hint">(pick up to 2)</span></h3>
       <div class="bubble-grid single" id="dimension-tags">
         <button class="bubble dim-physical"     data-value="physical">Physical / Fitness</button>
         <button class="bubble dim-emotional"    data-value="emotional">Emotional / Mental</button>
@@ -522,6 +524,7 @@ function renderSubmitFlow(campus) {
         <button class="bubble dim-environmental" data-value="environmental">Environment / Safety</button>
         <button class="bubble dim-occupational" data-value="occupational">Career / Occupational</button>
         <button class="bubble dim-financial"    data-value="financial">Financial</button>
+        <button class="bubble dim-holistic" data-value="holistic">Holistic — All 8 Dimensions</button>
       </div>
 
       <button class="btn-primary step-next" data-next="3" id="step2-next" disabled>
@@ -578,6 +581,8 @@ function renderSubmitFlow(campus) {
           <button class="bubble" data-value="3rd">3rd year</button>
           <button class="bubble" data-value="4th">4th year</button>
           <button class="bubble" data-value="grad">Grad</button>
+          <button class="bubble" data-value="alumni">Alumni</button>
+          <button class="bubble" data-value="dropout">Dropout</button>
         </div>
         <input
           type="text"

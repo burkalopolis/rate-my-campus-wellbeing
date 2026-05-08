@@ -471,17 +471,17 @@ function renderSubmitFlow(campus) {
           <span class="arch-phase">Respond</span>
           <span class="arch-desc">Pressure doesn't break you. It activates you.</span>
         </button>
-        <button class="archetype-card healer" data-value="healer">
-          <span class="arch-emoji">💦</span>
-          <span class="arch-name">Healer</span>
-          <span class="arch-phase">Recover</span>
-          <span class="arch-desc">You know how to bounce back.</span>
-        </button>
         <button class="archetype-card guide" data-value="guide">
           <span class="arch-emoji">🍃</span>
           <span class="arch-name">Guide</span>
           <span class="arch-phase">Anticipate</span>
           <span class="arch-desc">Where others see the present, you see the pattern.</span>
+        </button>
+        <button class="archetype-card healer" data-value="healer">
+          <span class="arch-emoji">💦</span>
+          <span class="arch-name">Healer</span>
+          <span class="arch-phase">Recover</span>
+          <span class="arch-desc">You know how to bounce back.</span>
         </button>
       </div>
 

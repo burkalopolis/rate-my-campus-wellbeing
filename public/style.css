@@ -1288,3 +1288,30 @@ img { max-width: 100%; display: block; }
 /* ============================================================
    FAVICON placeholder — prevents 404 noise
    ============================================================ */
+/* ── Archetype grid order fix + mobile responsive ─────────── */
+.archetype-card.guardian { order: 1; }
+.archetype-card.warrior  { order: 2; }
+.archetype-card.guide    { order: 3; }
+.archetype-card.healer   { order: 4; }
+
+@media (max-width: 540px) {
+  .archetype-grid {
+    grid-template-columns: 1fr;
+  }
+  .step {
+    padding: 24px 16px 48px;
+  }
+  .campus-header {
+    flex-direction: column;
+  }
+  .scores-grid {
+    grid-template-columns: 1fr;
+  }
+  .hero h1 {
+    font-size: 32px;
+  }
+  .feed-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

@@ -195,6 +195,7 @@ app.get('/admin', requireAdmin, async (req, res) => {
       created_at,
       flagged,
       campuses ( name, slug )
+      submitters ( community_tags, archetype_self )
     `)
     .eq('approved', false)
     .eq('flagged', false)
@@ -1182,6 +1183,7 @@ function renderAdminQueue(pending) {
         <span class="meta-pill">${s.archetype_derived || '—'}</span>
         <span class="meta-pill">${s.year_in_school || '—'}</span>
         <span class="meta-pill">${s.major || '—'}</span>
+        ${s.submitters?.community_tags?.length ? `<span class="meta-pill">${s.submitters.community_tags.join(", ")}</span>` : ""}
         <span class="meta-date">
           ${new Date(s.created_at).toLocaleDateString()}
         </span>

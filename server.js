@@ -1213,7 +1213,6 @@ function renderAdminQueue(pending, approved) {
       '<div class="admin-actions">',
       '<button class="btn-approve" onclick="approve(\u0027' + s.id + '\u0027)">✓ Approve</button>',
       '<button class="btn-flag" onclick="flag(\u0027' + s.id + '\u0027)">✗ Flag</button>',
-      '<button class="btn-delete" onclick="softDelete(\u0027' + s.id + '\u0027)">🗑 Delete</button>',
       '</div></div>'
     ].join('')
   }).join('')
@@ -1293,7 +1292,8 @@ function renderAdminQueue(pending, approved) {
         alert('Error flagging submission')
       }
     async function softDelete(id) {
-      if (!confirm('Remove this submission from the campus page? It will stay in the database.')) return
+      const confirm = prompt('Type DELETE to permanently remove this submission from the campus page:')
+      if (confirm !== 'DELETE') return
       const res = await fetch('/api/admin/delete/' + id, {
         method: 'POST',
         headers: { 'x-admin-password': pwd }

@@ -154,6 +154,7 @@ app.get('/campus/:slug', async (req, res) => {
     `)
     .eq('campus_id', campus.id)
     .eq('approved', true)
+    .eq("deleted", false)
     .order('created_at', { ascending: false })
     .limit(20)
 
@@ -163,6 +164,7 @@ app.get('/campus/:slug', async (req, res) => {
     .select('id', { count: 'exact', head: true })
     .eq('campus_id', campus.id)
     .eq('approved', true)
+    .eq("deleted", false)
 
   res.send(renderCampusPage(
     campus,
@@ -202,7 +204,15 @@ app.get('/admin', requireAdmin, async (req, res) => {
     .order('created_at', { ascending: true })
     .limit(50)
 
-  res.send(renderAdminQueue(pending || []))
+  const { data: approved } = await supabaseAdmin
+    .from("submissions")
+    .select(`id, feedback_text, dimension_tag, archetype_derived, subject_tag, year_in_school, major, image_url, created_at, campuses ( name, slug ), submitters ( community_tags )`)
+    .eq("approved", true)
+    .eq("deleted", false)
+    .order("created_at", { ascending: false })
+    .limit(50)
+
+  res.send(renderAdminQueue(pending || [], approved || []))
 })
 
 // ============================================================
@@ -340,6 +350,17 @@ app.post('/api/admin/flag/:id', requireAdmin, async (req, res) => {
     .eq('id', id)
 
   if (error) return res.status(500).json({ error: error.message })
+
+// ── POST /api/admin/delete/:id ─────────────────────────────
+app.post("/api/admin/delete/:id", requireAdmin, async (req, res) => {
+  const { id } = req.params
+  const { error } = await supabaseAdmin
+    .from("submissions")
+    .update({ deleted: true })
+    .eq("id", id)
+  if (error) return res.status(500).json({ error: error.message })
+  res.json({ success: true })
+})
 
   res.json({ success: true })
 })
@@ -1172,7 +1193,7 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
 </html>`
 }
 
-function renderAdminQueue(pending) {
+function renderAdminQueue(pending, approved) {
   const rows = pending.map(s => {
     const communityTags = s.submitters?.community_tags || []
     return [
@@ -1192,6 +1213,7 @@ function renderAdminQueue(pending) {
       '<div class="admin-actions">',
       '<button class="btn-approve" onclick="approve(\u0027' + s.id + '\u0027)">✓ Approve</button>',
       '<button class="btn-flag" onclick="flag(\u0027' + s.id + '\u0027)">✗ Flag</button>',
+      '<button class="btn-delete" onclick="softDelete(\u0027' + s.id + '\u0027)">🗑 Delete</button>',
       '</div></div>'
     ].join('')
   }).join('')
@@ -1215,6 +1237,28 @@ function renderAdminQueue(pending) {
         ? '<p class="empty-state">Queue is clear. Nothing to review.</p>'
         : rows
       }
+      <div class="admin-section">
+        <h3 class="admin-section-title">Approved (${approved.length})</h3>
+        ${approved.length === 0 ? '<p class="empty-state">No approved submissions yet.</p>' : approved.map(s => {
+          const ct = s.submitters?.community_tags || []
+          return [
+            '<div class="admin-row approved-row" id="row-' + s.id + '">',
+            '<div class="admin-meta">',
+            '<strong>' + escapeHtml(s.campuses?.name || '') + '</strong>',
+            s.dimension_tag ? '<span class="meta-pill">' + s.dimension_tag + '</span>' : '',
+            s.year_in_school ? '<span class="meta-pill">' + s.year_in_school + ' year</span>' : '',
+            s.major ? '<span class="meta-pill">' + escapeHtml(s.major) + '</span>' : '',
+            ct.length ? '<span class="meta-pill">' + ct.join(', ') + '</span>' : '',
+            '<span class="meta-date">' + new Date(s.created_at).toLocaleDateString('en-US', {timeZone: 'America/Los_Angeles'}) + '</span>',
+            '</div>',
+            s.image_url ? '<img src="' + escapeHtml(s.image_url) + '" class="admin-image-thumb" alt="">' : '',
+            '<p class="admin-text">' + escapeHtml(s.feedback_text) + '</p>',
+            '<div class="admin-actions">',
+            '<button class="btn-delete" onclick="softDelete(\u0027' + s.id + '\u0027)">🗑 Delete</button>',
+            '</div></div>'
+          ].join('')
+        }).join('')}
+      </div>
     </main>
   </div>
 
@@ -1248,6 +1292,18 @@ function renderAdminQueue(pending) {
       } else {
         alert('Error flagging submission')
       }
+    async function softDelete(id) {
+      if (!confirm('Remove this submission from the campus page? It will stay in the database.')) return
+      const res = await fetch('/api/admin/delete/' + id, {
+        method: 'POST',
+        headers: { 'x-admin-password': pwd }
+      })
+      if (res.ok) {
+        document.getElementById('row-' + id).remove()
+      } else {
+        alert('Error deleting submission')
+      }
+    }
     }
   </script>
 </body>

@@ -502,8 +502,8 @@ function renderSubmitFlow(campus) {
         <button class="bubble" data-value="undocumented">Undocumented/DACA</button>
       </div>
 
-      <h3 class="section-divider">Which archetype feels most like you?</h3>
-      <p class="step-sub">Go with your gut. Optional.</p>
+      <h3 class="section-divider">Which archetype does college most activate in you?</h3>
+      <p class="step-sub">Go with your gut — this is about what your campus brings out in you. Optional.</p>
 
       <div class="archetype-grid" id="archetype-select">
         <button class="archetype-card guardian" data-value="guardian">
@@ -1190,8 +1190,8 @@ function renderAdminQueue(pending) {
       s.image_url ? '<img src="' + escapeHtml(s.image_url) + '" class="admin-image-thumb" alt="Submission image">' : '',
       '<p class="admin-text">' + escapeHtml(s.feedback_text) + '</p>',
       '<div class="admin-actions">',
-      '<button class="btn-approve" onclick="approve("' + s.id + '")">✓ Approve</button>',
-      '<button class="btn-flag" onclick="flag("' + s.id + '")">✗ Flag</button>',
+      '<button class="btn-approve" onclick="approve(\u0027' + s.id + '\u0027)">✓ Approve</button>',
+      '<button class="btn-flag" onclick="flag(\u0027' + s.id + '\u0027)">✗ Flag</button>',
       '</div></div>'
     ].join('')
   }).join('')

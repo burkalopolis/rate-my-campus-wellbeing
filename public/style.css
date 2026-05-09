@@ -1556,3 +1556,42 @@ img { max-width: 100%; display: block; }
 .approved-row { opacity: 0.75; border-left: 3px solid #94C48A; }
 .btn-delete { font-family: 'Nunito', sans-serif; font-size: 13px; font-weight: 700; padding: 8px 20px; border-radius: var(--radius-pill); border: none; background: #FCE4EC; color: #7A1A3A; cursor: pointer; transition: background 0.15s; }
 .btn-delete:hover { background: #F8BBD0; }
+
+/* ── Community filter ─────────────────────────────────────── */
+.community-filter-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+#community-filter-select {
+  font-family: 'Nunito', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--blue);
+  background: var(--bg-white);
+  border: 1px solid var(--border-med);
+  border-radius: var(--radius-pill);
+  padding: 5px 12px;
+  cursor: pointer;
+  height: 32px;
+}
+#community-filter-select:focus { outline: none; border-color: var(--blue); }
+.active-filter-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.active-chip {
+  background: var(--blue);
+  color: white;
+  border-color: var(--blue);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.chip-remove {
+  font-size: 10px;
+  opacity: 0.8;
+}
+.active-chip:hover { background: var(--blue-dark); }

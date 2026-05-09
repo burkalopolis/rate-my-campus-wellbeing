@@ -1151,12 +1151,16 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
       <div class="feed-section">
         <div class="feed-header">
           <p class="panel-label">Student voices</p>
-          <div class="filter-chips">
-            <button class="chip active" data-filter="all">All</button>
-            <button class="chip" data-filter="emotional">Emotional</button>
-            <button class="chip" data-filter="intellectual">Academic</button>
-            <button class="chip" data-filter="social">Social</button>
-            <button class="chip" data-filter="financial">Financial</button>
+          <div class="community-filter-wrap">
+            <button class="chip active" id="filter-all">All</button>
+            <button class="chip" id="filter-clear">Clear</button>
+            <select id="community-filter-select">
+              <option value="">+ Filter by community</option>
+              ${[...new Set(submissions.flatMap(s => s.submitters?.community_tags || []))].sort().map(t =>
+                `<option value="${t}">${t}</option>`
+              ).join('')}
+            </select>
+            <div class="active-filter-chips" id="active-chips"></div>
           </div>
         </div>
         <div id="feed">
@@ -1175,18 +1179,50 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
   </div>
 
   <script>
-    document.querySelectorAll('.chip').forEach(chip => {
-      chip.addEventListener('click', () => {
-        document.querySelectorAll('.chip')
-          .forEach(c => c.classList.remove('active'))
-        chip.classList.add('active')
-        const filter = chip.dataset.filter
-        document.querySelectorAll('.feed-entry').forEach(entry => {
-          entry.style.display =
-            filter === 'all' || entry.dataset.dim === filter
-              ? '' : 'none'
-        })
+    const activeFilters = new Set()
+
+    function applyFilters() {
+      const entries = document.querySelectorAll('.feed-entry')
+      entries.forEach(entry => {
+        if (activeFilters.size === 0) { entry.style.display = ''; return }
+        const community = (entry.dataset.community || '').split(',').map(t => t.trim())
+        entry.style.display = [...activeFilters].some(f => community.includes(f)) ? '' : 'none'
       })
+      document.getElementById('filter-all').classList.toggle('active', activeFilters.size === 0)
+    }
+
+    function addChip(tag) {
+      if (activeFilters.has(tag)) return
+      activeFilters.add(tag)
+      const chip = document.createElement('button')
+      chip.className = 'chip active-chip'
+      chip.innerHTML = tag + ' <span class="chip-remove">✕</span>'
+      chip.addEventListener('click', () => {
+        activeFilters.delete(tag)
+        chip.remove()
+        applyFilters()
+        document.getElementById('community-filter-select').value = ''
+      })
+      document.getElementById('active-chips').appendChild(chip)
+      applyFilters()
+    }
+
+    document.getElementById('filter-all').addEventListener('click', () => {
+      activeFilters.clear()
+      document.getElementById('active-chips').innerHTML = ''
+      document.getElementById('community-filter-select').value = ''
+      applyFilters()
+    })
+
+    document.getElementById('filter-clear').addEventListener('click', () => {
+      activeFilters.clear()
+      document.getElementById('active-chips').innerHTML = ''
+      document.getElementById('community-filter-select').value = ''
+      applyFilters()
+    })
+
+    document.getElementById('community-filter-select').addEventListener('change', e => {
+      if (e.target.value) { addChip(e.target.value); e.target.value = '' }
     })
   </script>
 </body>

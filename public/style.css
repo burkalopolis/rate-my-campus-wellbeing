@@ -626,6 +626,11 @@ img { max-width: 100%; display: block; }
   margin-bottom: var(--sp-3);
 }
 
+.field-required {
+  color: #c0392b;
+  margin-left: 2px;
+}
+
 .sentence-starters {
   font-size: 13px;
   color: var(--text-muted);

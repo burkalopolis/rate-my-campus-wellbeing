@@ -519,9 +519,9 @@ function renderSubmitFlow(campus, allCampuses = []) {
     <div class="step" id="step-1">
       <p class="step-eyebrow">About you</p>
       <h2>Tell us a little about yourself</h2>
-      <p class="step-sub">Helps us give your feedback context. All optional if you prefer not to share.</p>
+      <p class="step-sub">Your campus is required. Everything else is optional.</p>
 
-      <h3 class="field-label">Which campus are you at?</h3>
+      <h3 class="field-label">Which campus are you at? <span class="field-required">*</span></h3>
       <select id="step1-campus-select" class="campus-dropdown">
         <option value="">— Choose your campus —</option>
         ${campusDropdownOptions}
@@ -541,7 +541,7 @@ function renderSubmitFlow(campus, allCampuses = []) {
 
       <label class="skip-label" style="margin-top:1rem;display:flex;align-items:center;gap:0.6rem;cursor:pointer">
         <input type="checkbox" id="skip-campus-year" style="width:1.1rem;height:1.1rem;cursor:pointer">
-        <span>Prefer not to say — skip campus and year</span>
+        <span>Prefer not to say — skip year only</span>
       </label>
 
       <h3 class="field-label" style="margin-top:1.75rem">Which communities are you part of?</h3>
@@ -709,7 +709,7 @@ function renderSubmitFlow(campus, allCampuses = []) {
       const skip = document.getElementById('skip-campus-year').checked
       const hasCampus = !!state.campus_id
       const hasYear   = !!state.year_in_school
-      document.getElementById('step1-next').disabled = !(skip || (hasCampus && hasYear))
+      document.getElementById('step1-next').disabled = !(hasCampus && (hasYear || skip))
     }
 
     // ── Campus dropdown (Step 1) ───────────────────────────
@@ -722,21 +722,16 @@ function renderSubmitFlow(campus, allCampuses = []) {
         checkStep1()
       })
 
-    // ── Skip campus/year checkbox ──────────────────────────
+    // ── Skip year checkbox ─────────────────────────────────
     document.getElementById('skip-campus-year')
       .addEventListener('change', e => {
         const skip = e.target.checked
-        document.getElementById('step1-campus-select').disabled = skip
         document.querySelectorAll('#year-select .bubble').forEach(b => {
           b.disabled = skip
           if (skip) b.classList.remove('selected')
         })
         if (skip) {
-          state.campus_id   = ''
-          state.campus_slug = ''
-          state.campus_name = ''
           state.year_in_school = null
-          document.getElementById('step1-campus-select').value = ''
         }
         checkStep1()
       })

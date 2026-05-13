@@ -235,16 +235,24 @@ app.post('/api/submit', submitLimiter, upload.single('image'), async (req, res) 
     major
   } = req.body
 
+  const { wish_text, wish_dimension } = req.body
+
   // Basic validation
-  if (!campus_id || !subject_tag || !dimension_tag || !feedback_text) {
+  if (!campus_id || !subject_tag || !dimension_tag) {
     return res.status(400).json({
-      error: 'Missing required fields: campus_id, subject_tag, dimension_tag, feedback_text'
+      error: 'Missing required fields: campus_id, subject_tag, dimension_tag'
     })
   }
 
-  if (feedback_text.length > 500) {
+  if (feedback_text && feedback_text.length > 500) {
     return res.status(400).json({
       error: 'Feedback must be 500 characters or fewer'
+    })
+  }
+
+  if (wish_text && wish_text.length > 500) {
+    return res.status(400).json({
+      error: 'Wish text must be 500 characters or fewer'
     })
   }
 
@@ -604,24 +612,57 @@ function renderSubmitFlow(campus, allCampuses = []) {
       <p class="step-eyebrow">Your Voice</p>
       <h2 id="step3-heading">What's the wellbeing experience really like?</h2>
 
-      <label class="field-label" for="prompt-select" style="margin-top:1rem;display:block">Choose a sentence starter <span class="field-hint">(optional)</span></label>
-      <select id="prompt-select" class="campus-dropdown" style="margin-bottom:1rem">
-        <option value="">— Choose a sentence starter —</option>
-        <option value="The thing that helped me most was... ">The thing that helped me most was...</option>
-        <option value="I wish I had known... ">I wish I had known...</option>
-        <option value="The hardest part was... ">The hardest part was...</option>
-        <option value="What surprised me about support here... ">What surprised me about support here...</option>
-        <option value="If I could change one thing... ">If I could change one thing...</option>
-      </select>
+      <!-- Section 1 -->
+      <div class="feedback-section">
+        <h3 class="feedback-section-label">What do you want to share about your experience?</h3>
 
-      <textarea
-        id="feedback-text"
-        class="feedback-textarea"
-        placeholder="In your own words — what do students need to know? (optional)"
-        maxlength="500"
-      ></textarea>
-      <div class="char-count">
-        <span id="char-current">0</span> / 500
+        <select id="prompt-select" class="campus-dropdown">
+          <option value="">— Choose a sentence starter (optional) —</option>
+          <option value="The thing that helped me most was... ">The thing that helped me most was...</option>
+          <option value="I wish I had known... ">I wish I had known...</option>
+          <option value="The hardest part was... ">The hardest part was...</option>
+          <option value="What surprised me about support here... ">What surprised me about support here...</option>
+          <option value="If I could change one thing... ">If I could change one thing...</option>
+        </select>
+
+        <textarea
+          id="feedback-text"
+          class="feedback-textarea"
+          placeholder="In your own words — what do students need to know? (optional)"
+          maxlength="500"
+        ></textarea>
+        <div class="char-count">
+          <span id="char-current">0</span> / 500
+        </div>
+      </div>
+
+      <!-- Section 2 -->
+      <div class="feedback-section">
+        <h3 class="feedback-section-label">What do you wish you knew when you first attended college?</h3>
+
+        <select id="wish-dimension" class="campus-dropdown">
+          <option value="">Which area does this relate to?</option>
+          <option value="physical">Physical</option>
+          <option value="emotional">Emotional</option>
+          <option value="intellectual">Intellectual</option>
+          <option value="social">Social</option>
+          <option value="spiritual">Spiritual</option>
+          <option value="environmental">Environmental</option>
+          <option value="occupational">Occupational</option>
+          <option value="financial">Financial</option>
+          <option value="holistic">Holistic — All Dimensions</option>
+        </select>
+        <p id="wish-dim-error" class="field-error" style="display:none">Please select an area before submitting.</p>
+
+        <textarea
+          id="wish-text"
+          class="feedback-textarea"
+          placeholder="Share what you wish someone had told you... (optional)"
+          maxlength="500"
+        ></textarea>
+        <div class="char-count">
+          <span id="wish-char-current">0</span> / 500
+        </div>
       </div>
 
       <div class="optional-fields">
@@ -660,6 +701,8 @@ function renderSubmitFlow(campus, allCampuses = []) {
       subject_tag:     null,
       dimension_tag:   null,
       feedback_text:   '',
+      wish_text:       '',
+      wish_dimension:  null,
       year_in_school:  null,
       major:           null
     }
@@ -806,7 +849,7 @@ function renderSubmitFlow(campus, allCampuses = []) {
       const hasDimension = state.dimension_tags?.length > 0 || state.dimension_tag
       document.getElementById('step2-next').disabled = !(hasSubject && hasDimension)
     }
-    // ── Feedback textarea & sentence starter ───────────────
+    // ── Section 1: sentence starter + textarea ─────────────
     const textarea    = document.getElementById('feedback-text')
     const charCurrent = document.getElementById('char-current')
     const submitBtn   = document.getElementById('submit-btn')
@@ -827,6 +870,29 @@ function renderSubmitFlow(campus, allCampuses = []) {
       state.feedback_text = textarea.value
     })
 
+    // ── Section 2: wish dimension + textarea ────────────────
+    const wishTextarea    = document.getElementById('wish-text')
+    const wishCharCurrent = document.getElementById('wish-char-current')
+    const wishDimSelect   = document.getElementById('wish-dimension')
+    const wishDimError    = document.getElementById('wish-dim-error')
+
+    wishDimSelect.addEventListener('change', e => {
+      state.wish_dimension = e.target.value || null
+      if (state.wish_dimension) {
+        wishDimError.style.display = 'none'
+        wishDimSelect.classList.remove('input-error')
+      }
+    })
+
+    wishTextarea.addEventListener('input', () => {
+      wishCharCurrent.textContent = wishTextarea.value.length
+      state.wish_text = wishTextarea.value
+      if (!state.wish_text.trim()) {
+        wishDimError.style.display = 'none'
+        wishDimSelect.classList.remove('input-error')
+      }
+    })
+
     // ── Major input ────────────────────────────────────────
     document.getElementById('major-input').addEventListener('input', e => {
       state.major = e.target.value || null
@@ -834,6 +900,16 @@ function renderSubmitFlow(campus, allCampuses = []) {
 
     // ── Submit ─────────────────────────────────────────────
     submitBtn.addEventListener('click', async () => {
+      // Validate Section 2: wish_dimension required if wish_text entered
+      if (state.wish_text.trim() && !state.wish_dimension) {
+        wishDimError.style.display = 'block'
+        wishDimSelect.classList.add('input-error')
+        wishDimSelect.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        return
+      }
+      wishDimError.style.display = 'none'
+      wishDimSelect.classList.remove('input-error')
+
       goToStep(4)
 
       try {
@@ -842,6 +918,8 @@ function renderSubmitFlow(campus, allCampuses = []) {
         fd.append("subject_tag", state.subject_tag || "")
         fd.append("dimension_tag", state.dimension_tag || "")
         fd.append("feedback_text", state.feedback_text)
+        if (state.wish_text.trim()) fd.append("wish_text", state.wish_text.trim())
+        if (state.wish_dimension) fd.append("wish_dimension", state.wish_dimension)
         if (state.year_in_school) fd.append("year_in_school", state.year_in_school)
         if (state.major) fd.append("major", state.major)
         ;(state.community_tags || []).forEach(t => fd.append("community_tags", t))

@@ -1392,48 +1392,10 @@ function escapeHtml(str) {
     .replace(/'/g,  '&#039;')
 }
 
-// ── PostgREST schema cache reload ────────────────────────────
-// Called once at startup so PostgREST recognises any columns added
-// after the last schema cache load (PGRST204 symptoms).
-async function reloadPostgrestSchema() {
-  try {
-    const { error } = await supabaseAdmin.rpc('pg_notify', {
-      channel: 'pgrst',
-      payload: 'reload schema'
-    })
-    if (error) {
-      // pg_notify may not be exposed as RPC — fall back to raw REST call
-      const url = `${process.env.SUPABASE_URL}/rest/v1/rpc/pg_notify`
-      const resp = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
-          'apikey': process.env.SUPABASE_SERVICE_KEY,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ channel: 'pgrst', payload: 'reload schema' })
-      })
-      if (resp.ok) {
-        console.log('PostgREST schema reload triggered via REST')
-      } else {
-        const body = await resp.text()
-        console.warn('PostgREST schema reload REST call failed:', resp.status, body)
-        console.warn('ACTION REQUIRED: Go to Supabase Dashboard → Settings → API → Reload schema cache')
-      }
-    } else {
-      console.log('PostgREST schema reload triggered via RPC')
-    }
-  } catch (e) {
-    console.warn('PostgREST schema reload error:', e.message)
-    console.warn('ACTION REQUIRED: Go to Supabase Dashboard → Settings → API → Reload schema cache')
-  }
-}
-
 // ── Start server ─────────────────────────────────────────────
 const PORT = process.env.PORT || 3000
-app.listen(PORT, async () => {
+app.listen(PORT, () => {
   console.log(`RMCW running on port ${PORT}`)
-  await reloadPostgrestSchema()
 })
 
 export default app

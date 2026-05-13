@@ -527,7 +527,7 @@ function renderSubmitFlow(campus, allCampuses = []) {
         ${campusDropdownOptions}
       </select>
 
-      <h3 class="field-label" style="margin-top:1.5rem">What year are you?</h3>
+      <h3 class="field-label" style="margin-top:1.5rem">What year are you? <span class="field-hint">(optional)</span></h3>
       <div class="bubble-grid" id="year-select">
         <button class="bubble" data-value="1st">1st year</button>
         <button class="bubble" data-value="2nd">2nd year</button>
@@ -538,11 +538,6 @@ function renderSubmitFlow(campus, allCampuses = []) {
         <button class="bubble" data-value="alumni">Alumni</button>
         <button class="bubble" data-value="dropout">Dropout</button>
       </div>
-
-      <label class="skip-label" style="margin-top:1rem;display:flex;align-items:center;gap:0.6rem;cursor:pointer">
-        <input type="checkbox" id="skip-campus-year" style="width:1.1rem;height:1.1rem;cursor:pointer">
-        <span>Prefer not to say — skip year only</span>
-      </label>
 
       <h3 class="field-label" style="margin-top:1.75rem">Which communities are you part of?</h3>
       <p class="step-sub">Select all that apply. Completely optional.</p>
@@ -706,10 +701,7 @@ function renderSubmitFlow(campus, allCampuses = []) {
 
     // ── Step 1 validation ──────────────────────────────────
     function checkStep1() {
-      const skip = document.getElementById('skip-campus-year').checked
-      const hasCampus = !!state.campus_id
-      const hasYear   = !!state.year_in_school
-      document.getElementById('step1-next').disabled = !(hasCampus && (hasYear || skip))
+      document.getElementById('step1-next').disabled = !state.campus_id
     }
 
     // ── Campus dropdown (Step 1) ───────────────────────────
@@ -719,20 +711,6 @@ function renderSubmitFlow(campus, allCampuses = []) {
         state.campus_id   = e.target.value
         state.campus_slug = opt?.dataset.slug || ''
         state.campus_name = opt?.text || ''
-        checkStep1()
-      })
-
-    // ── Skip year checkbox ─────────────────────────────────
-    document.getElementById('skip-campus-year')
-      .addEventListener('change', e => {
-        const skip = e.target.checked
-        document.querySelectorAll('#year-select .bubble').forEach(b => {
-          b.disabled = skip
-          if (skip) b.classList.remove('selected')
-        })
-        if (skip) {
-          state.year_in_school = null
-        }
         checkStep1()
       })
 

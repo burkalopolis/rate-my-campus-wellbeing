@@ -601,10 +601,18 @@ function renderSubmitFlow(campus, allCampuses = []) {
 
     <!-- Step 3: Your feedback -->
     <div class="step hidden" id="step-3">
-      <p class="step-eyebrow">Your voice</p>
+      <p class="step-eyebrow">Your Voice</p>
       <h2 id="step3-heading">What's the wellbeing experience really like?</h2>
 
-      <p class="sentence-starters">The thing that helped me most was... &nbsp;/&nbsp; I wish I had known... &nbsp;/&nbsp; The hardest part was... &nbsp;/&nbsp; What surprised me about support here... &nbsp;/&nbsp; If I could change one thing...</p>
+      <label class="field-label" for="prompt-select" style="margin-top:1rem;display:block">Choose a sentence starter <span class="field-hint">(optional)</span></label>
+      <select id="prompt-select" class="campus-dropdown" style="margin-bottom:1rem">
+        <option value="">— Choose a sentence starter —</option>
+        <option value="The thing that helped me most was... ">The thing that helped me most was...</option>
+        <option value="I wish I had known... ">I wish I had known...</option>
+        <option value="The hardest part was... ">The hardest part was...</option>
+        <option value="What surprised me about support here... ">What surprised me about support here...</option>
+        <option value="If I could change one thing... ">If I could change one thing...</option>
+      </select>
 
       <textarea
         id="feedback-text"
@@ -690,11 +698,8 @@ function renderSubmitFlow(campus, allCampuses = []) {
         document.getElementById("step2-heading").textContent = state.campus_name
       }
       if (n === 3) {
-        const parts = []
-        if (state.campus_name) parts.push(state.campus_name)
-        if (state.dimension_tags?.length) parts.push(state.dimension_tags.join(" + "))
-        if (state.subject_tags?.length) parts.push(state.subject_tags.join(" + "))
-        document.getElementById("step3-heading").textContent = parts.join(" · ") || "What's the wellbeing experience really like?"
+        document.getElementById("step3-heading").textContent =
+          state.campus_name || "What's the wellbeing experience really like?"
       }
       window.scrollTo(0, 0)
     }
@@ -801,10 +806,21 @@ function renderSubmitFlow(campus, allCampuses = []) {
       const hasDimension = state.dimension_tags?.length > 0 || state.dimension_tag
       document.getElementById('step2-next').disabled = !(hasSubject && hasDimension)
     }
-    // ── Feedback textarea ──────────────────────────────────
-    const textarea   = document.getElementById('feedback-text')
+    // ── Feedback textarea & sentence starter ───────────────
+    const textarea    = document.getElementById('feedback-text')
     const charCurrent = document.getElementById('char-current')
-    const submitBtn  = document.getElementById('submit-btn')
+    const submitBtn   = document.getElementById('submit-btn')
+
+    document.getElementById('prompt-select').addEventListener('change', e => {
+      const starter = e.target.value
+      if (starter) {
+        textarea.value = starter
+        state.feedback_text = starter
+        charCurrent.textContent = starter.length
+        textarea.focus()
+        textarea.setSelectionRange(starter.length, starter.length)
+      }
+    })
 
     textarea.addEventListener('input', () => {
       charCurrent.textContent = textarea.value.length

@@ -269,7 +269,9 @@ app.post('/api/submit', submitLimiter, upload.single('image'), async (req, res) 
     const { data: submitter, error: submitterError } = await supabase
       .from('submitters')
       .insert({
-        community_tags: community_tags || [],
+        community_tags: Array.isArray(community_tags)
+          ? community_tags
+          : (community_tags ? [community_tags] : []),
         archetype_self: archetype_self || null,
         student_type: 'unknown'
       })

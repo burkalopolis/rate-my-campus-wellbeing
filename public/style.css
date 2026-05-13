@@ -626,6 +626,18 @@ img { max-width: 100%; display: block; }
   margin-bottom: var(--sp-3);
 }
 
+.sentence-starters {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-style: italic;
+  line-height: 1.7;
+  margin-bottom: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--bg-primary);
+  border-left: 3px solid var(--border-med);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
 .optional-fields {
   margin-bottom: var(--sp-3);
 }

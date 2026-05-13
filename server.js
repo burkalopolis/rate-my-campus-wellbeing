@@ -242,9 +242,9 @@ app.post('/api/submit', submitLimiter, upload.single('image'), async (req, res) 
     })
   }
 
-  if (feedback_text.length < 30 || feedback_text.length > 500) {
+  if (feedback_text.length > 500) {
     return res.status(400).json({
-      error: 'Feedback must be between 30 and 500 characters'
+      error: 'Feedback must be 500 characters or fewer'
     })
   }
 
@@ -609,48 +609,16 @@ function renderSubmitFlow(campus, allCampuses = []) {
       <p class="step-eyebrow">Your voice</p>
       <h2 id="step3-heading">What's the wellbeing experience really like?</h2>
 
-      <div class="prompt-toggle">
-        <button class="toggle-btn active" id="toggle-free">Write freely</button>
-        <button class="toggle-btn" id="toggle-prompted">Give me a prompt</button>
-      </div>
-
-      <div id="prompt-selector" class="hidden">
-        <select id="prompt-select" class="prompt-dropdown">
-          <option value="">— Choose a sentence starter —</option>
-          <option value="The thing that helped me most was...">
-            The thing that helped me most was...</option>
-          <option value="I wish I had known...">
-            I wish I had known...</option>
-          <option value="The hardest part was...">
-            The hardest part was...</option>
-          <option value="What surprised me about support here...">
-            What surprised me about support here...</option>
-          <option value="If I could change one thing...">
-            If I could change one thing...</option>
-        </select>
-      </div>
+      <p class="sentence-starters">The thing that helped me most was... &nbsp;/&nbsp; I wish I had known... &nbsp;/&nbsp; The hardest part was... &nbsp;/&nbsp; What surprised me about support here... &nbsp;/&nbsp; If I could change one thing...</p>
 
       <textarea
         id="feedback-text"
         class="feedback-textarea"
-        placeholder="In your own words — what do students need to know?"
-        minlength="30"
+        placeholder="In your own words — what do students need to know? (optional)"
         maxlength="500"
       ></textarea>
       <div class="char-count">
         <span id="char-current">0</span> / 500
-        <span id="char-min-hint"> (30 minimum)</span>
-      </div>
-
-      <p class="instinct-tip">💡 Go with your first instinct.
-         Honest beats polished every time.</p>
-      <div class="image-upload-wrap">
-        <label class="image-upload-label" id="image-label">📷 Add a photo <span class="field-hint">(optional · jpg/png/gif · max 5MB)</span></label>
-        <input type="file" id="image-input" class="image-input-hidden" accept="image/jpeg,image/png,image/gif">
-        <div id="image-preview-wrap" class="hidden">
-          <img id="image-preview" class="image-preview-thumb" alt="Preview">
-          <button id="image-remove" class="image-remove-btn" type="button">✕ Remove</button>
-        </div>
       </div>
 
       <div class="optional-fields">
@@ -663,7 +631,7 @@ function renderSubmitFlow(campus, allCampuses = []) {
         >
       </div>
 
-      <button class="btn-primary" id="submit-btn" disabled>
+      <button class="btn-primary" id="submit-btn">
         Submit My Feedback →
       </button>
     </div>
@@ -688,8 +656,6 @@ function renderSubmitFlow(campus, allCampuses = []) {
       community_tags:  [],
       subject_tag:     null,
       dimension_tag:   null,
-      prompt_mode:     'free',
-      prompt_used:     null,
       feedback_text:   '',
       year_in_school:  null,
       major:           null
@@ -862,64 +828,14 @@ function renderSubmitFlow(campus, allCampuses = []) {
       const hasDimension = state.dimension_tags?.length > 0 || state.dimension_tag
       document.getElementById('step2-next').disabled = !(hasSubject && hasDimension)
     }
-    // ── Prompt toggle ──────────────────────────────────────
-    document.getElementById('toggle-free').addEventListener('click', () => {
-      state.prompt_mode = 'free'
-      document.getElementById('toggle-free').classList.add('active')
-      document.getElementById('toggle-prompted').classList.remove('active')
-      document.getElementById('prompt-selector').classList.add('hidden')
-      document.getElementById('feedback-text').value = ''
-      state.prompt_used = null
-    })
-
-    document.getElementById('toggle-prompted').addEventListener('click', () => {
-      state.prompt_mode = 'prompted'
-      document.getElementById('toggle-prompted').classList.add('active')
-      document.getElementById('toggle-free').classList.remove('active')
-      document.getElementById('prompt-selector').classList.remove('hidden')
-    })
-
-    document.getElementById('prompt-select').addEventListener('change', e => {
-      const val = e.target.value
-      state.prompt_used = val
-      document.getElementById('feedback-text').value = val
-      document.getElementById('feedback-text').focus()
-    })
-
     // ── Feedback textarea ──────────────────────────────────
-    const textarea = document.getElementById('feedback-text')
+    const textarea   = document.getElementById('feedback-text')
     const charCurrent = document.getElementById('char-current')
-    const charMinHint = document.getElementById('char-min-hint')
-    const submitBtn   = document.getElementById('submit-btn')
+    const submitBtn  = document.getElementById('submit-btn')
 
     textarea.addEventListener('input', () => {
-      const len = textarea.value.length
-      charCurrent.textContent = len
-      charMinHint.style.display = len >= 30 ? 'none' : 'inline'
+      charCurrent.textContent = textarea.value.length
       state.feedback_text = textarea.value
-      submitBtn.disabled = len < 30
-    })
-    // ── Image upload ───────────────────────────────────────
-    const imageInput = document.getElementById("image-input")
-    const imagePreviewWrap = document.getElementById("image-preview-wrap")
-    const imagePreview = document.getElementById("image-preview")
-    const imageRemove = document.getElementById("image-remove")
-    const imageLabel = document.getElementById("image-label")
-    imageLabel.addEventListener("click", () => imageInput.click())
-    imageInput.addEventListener("change", () => {
-      const file = imageInput.files[0]
-      if (!file) return
-      if (file.size > 5 * 1024 * 1024) { alert("Image must be under 5MB"); imageInput.value = ""; return }
-      state.imageFile = file
-      imagePreview.src = URL.createObjectURL(file)
-      imagePreviewWrap.classList.remove("hidden")
-      imageLabel.style.display = "none"
-    })
-    imageRemove.addEventListener("click", () => {
-      state.imageFile = null
-      imageInput.value = ""
-      imagePreviewWrap.classList.add("hidden")
-      imageLabel.style.display = ""
     })
 
     // ── Major input ────────────────────────────────────────
@@ -929,7 +845,6 @@ function renderSubmitFlow(campus, allCampuses = []) {
 
     // ── Submit ─────────────────────────────────────────────
     submitBtn.addEventListener('click', async () => {
-      if (state.feedback_text.length < 30) return
       goToStep(4)
 
       try {
@@ -938,12 +853,9 @@ function renderSubmitFlow(campus, allCampuses = []) {
         fd.append("subject_tag", state.subject_tag || "")
         fd.append("dimension_tag", state.dimension_tag || "")
         fd.append("feedback_text", state.feedback_text)
-        fd.append("prompt_mode", state.prompt_mode)
-        if (state.prompt_used) fd.append("prompt_used", state.prompt_used)
         if (state.year_in_school) fd.append("year_in_school", state.year_in_school)
         if (state.major) fd.append("major", state.major)
         ;(state.community_tags || []).forEach(t => fd.append("community_tags", t))
-        if (state.imageFile) fd.append("image", state.imageFile)
         const res = await fetch("/api/submit", { method: "POST", body: fd })
         const data = await res.json()
 

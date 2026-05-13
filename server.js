@@ -259,7 +259,7 @@ app.post('/api/submit', submitLimiter, upload.single('image'), async (req, res) 
   // Basic profanity check placeholder
   // Replace with a proper library in production
   const blocked = ['spam', 'test123']
-  const lower = feedback_text.toLowerCase()
+  const lower = (feedback_text || '').toLowerCase()
   if (blocked.some(w => lower.includes(w))) {
     return res.status(400).json({ error: 'Feedback contains blocked content' })
   }
@@ -294,25 +294,54 @@ app.post('/api/submit', submitLimiter, upload.single('image'), async (req, res) 
 
     // 2. Create submission record
     // Note: archetype_derived is set automatically by the database trigger
+    const feedbackTrimmed = (feedback_text || '').trim()
+    const insertPayload = {
+      campus_id,
+      submitter_id:  submitter.id,
+      // subject and dimension — send null if not provided (DB must allow null)
+      subject_tag:   subject_tag   || null,
+      dimension_tag: dimension_tag || null,
+      // prompt
+      prompt_mode:   prompt_mode   || 'free',
+      prompt_used:   prompt_used   || null,
+      // feedback — send null if empty (DB column must be nullable)
+      feedback_text: feedbackTrimmed || null,
+      // optional context
+      year_in_school: year_in_school || null,
+      major:          major          || null,
+      image_url:      image_url      || null,
+      // soft-delete flag (new column — boolean, default false)
+      deleted: false,
+      // per-dimension numeric ratings (new columns, all nullable)
+      rating_physical:      null,
+      rating_emotional:     null,
+      rating_intellectual:  null,
+      rating_social:        null,
+      rating_spiritual:     null,
+      rating_environmental: null,
+      rating_occupational:  null,
+      rating_financial:     null,
+      // guidance / wish fields (new columns, all nullable)
+      guidance_text:      wish_text      || null,
+      guidance_dimension: wish_dimension || null,
+      // community tags on submission (new column — text array)
+      communities: Array.isArray(community_tags)
+        ? community_tags
+        : (community_tags ? [community_tags] : [])
+    }
+
+    console.log('Insert payload keys:', Object.keys(insertPayload))
+
     const { data: submission, error: submissionError } = await supabase
       .from('submissions')
-      .insert({
-        campus_id,
-        submitter_id: submitter.id,
-        subject_tag: subject_tag || null,
-        dimension_tag,
-        prompt_mode: prompt_mode || 'free',
-        prompt_used: prompt_used || null,
-        feedback_text: feedback_text.trim(),
-        year_in_school: year_in_school || null,
-        major: major || null,
-        image_url,
-        approved: false
-      })
+      .insert(insertPayload)
       .select('id, archetype_derived')
       .single()
 
-    if (submissionError) throw submissionError
+    if (submissionError) {
+      console.error('Supabase submissionError full:', JSON.stringify(submissionError, null, 2))
+      throw submissionError
+    }
 
     res.json({
       success: true,
@@ -1378,10 +1407,48 @@ function escapeHtml(str) {
     .replace(/'/g,  '&#039;')
 }
 
+// ── PostgREST schema cache reload ────────────────────────────
+// Called once at startup so PostgREST recognises any columns added
+// after the last schema cache load (PGRST204 symptoms).
+async function reloadPostgrestSchema() {
+  try {
+    const { error } = await supabaseAdmin.rpc('pg_notify', {
+      channel: 'pgrst',
+      payload: 'reload schema'
+    })
+    if (error) {
+      // pg_notify may not be exposed as RPC — fall back to raw REST call
+      const url = `${process.env.SUPABASE_URL}/rest/v1/rpc/pg_notify`
+      const resp = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
+          'apikey': process.env.SUPABASE_SERVICE_KEY,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ channel: 'pgrst', payload: 'reload schema' })
+      })
+      if (resp.ok) {
+        console.log('PostgREST schema reload triggered via REST')
+      } else {
+        const body = await resp.text()
+        console.warn('PostgREST schema reload REST call failed:', resp.status, body)
+        console.warn('ACTION REQUIRED: Go to Supabase Dashboard → Settings → API → Reload schema cache')
+      }
+    } else {
+      console.log('PostgREST schema reload triggered via RPC')
+    }
+  } catch (e) {
+    console.warn('PostgREST schema reload error:', e.message)
+    console.warn('ACTION REQUIRED: Go to Supabase Dashboard → Settings → API → Reload schema cache')
+  }
+}
+
 // ── Start server ─────────────────────────────────────────────
 const PORT = process.env.PORT || 3000
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`RMCW running on port ${PORT}`)
+  await reloadPostgrestSchema()
 })
 
 export default app

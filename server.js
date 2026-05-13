@@ -232,16 +232,22 @@ app.post('/api/submit', submitLimiter, upload.single('image'), async (req, res) 
     prompt_used,
     feedback_text,
     year_in_school,
-    major
+    major,
+    rating_physical,
+    rating_emotional,
+    rating_intellectual,
+    rating_social,
+    rating_spiritual,
+    rating_environmental,
+    rating_occupational,
+    rating_financial
   } = req.body
 
   const { wish_text, wish_dimension } = req.body
 
   // Basic validation
-  if (!campus_id || !dimension_tag) {
-    return res.status(400).json({
-      error: 'Missing required fields: campus_id, dimension_tag'
-    })
+  if (!campus_id) {
+    return res.status(400).json({ error: 'Missing required field: campus_id' })
   }
 
   if (feedback_text && feedback_text.length > 500) {
@@ -309,14 +315,14 @@ app.post('/api/submit', submitLimiter, upload.single('image'), async (req, res) 
       guidance_text:      wish_text      || null,
       guidance_dimension: wish_dimension || null,
       communities:    communitiesText   || null,
-      rating_physical:      null,
-      rating_emotional:     null,
-      rating_intellectual:  null,
-      rating_social:        null,
-      rating_spiritual:     null,
-      rating_environmental: null,
-      rating_occupational:  null,
-      rating_financial:     null
+      rating_physical:      rating_physical      != null ? parseFloat(rating_physical)      : null,
+      rating_emotional:     rating_emotional     != null ? parseFloat(rating_emotional)     : null,
+      rating_intellectual:  rating_intellectual  != null ? parseFloat(rating_intellectual)  : null,
+      rating_social:        rating_social        != null ? parseFloat(rating_social)        : null,
+      rating_spiritual:     rating_spiritual     != null ? parseFloat(rating_spiritual)     : null,
+      rating_environmental: rating_environmental != null ? parseFloat(rating_environmental) : null,
+      rating_occupational:  rating_occupational  != null ? parseFloat(rating_occupational)  : null,
+      rating_financial:     rating_financial     != null ? parseFloat(rating_financial)     : null
     }
 
     const { data: submission, error: submissionError } = await supabase
@@ -589,26 +595,157 @@ function renderSubmitFlow(campus, allCampuses = []) {
       </button>
     </div>
 
-    <!-- Step 2: What are you rating? -->
+    <!-- Step 2: Campus Rating Sliders -->
     <div class="step hidden" id="step-2">
-      <p class="step-eyebrow">Your feedback</p>
-      <h2 id="step2-heading">What are you speaking to?</h2>
-      <p class="step-sub">Pick a wellness dimension.</p>
-
-      <h3 class="field-label">Wellness Dimension <span class="field-hint">(pick up to 2)</span></h3>
-      <div class="bubble-grid single" id="dimension-tags">
-        <button class="bubble dim-physical"     data-value="physical">Physical / Fitness</button>
-        <button class="bubble dim-emotional"    data-value="emotional">Emotional / Mental</button>
-        <button class="bubble dim-intellectual" data-value="intellectual">Academic / Intellectual</button>
-        <button class="bubble dim-social"       data-value="social">Social Connection</button>
-        <button class="bubble dim-spiritual"    data-value="spiritual">Spiritual / Direction</button>
-        <button class="bubble dim-environmental" data-value="environmental">Environment / Safety</button>
-        <button class="bubble dim-occupational" data-value="occupational">Career / Occupational</button>
-        <button class="bubble dim-financial"    data-value="financial">Financial</button>
-        <button class="bubble dim-holistic" data-value="holistic">Holistic — All 8 Dimensions</button>
+      <p class="step-eyebrow">Rate Your Campus</p>
+      <h2 id="step2-heading">How well did your campus support you?</h2>
+      <p class="step-sub">Rate each area honestly. All 8 are required.</p>
+      <div class="rating-progress-row">
+        <span class="rating-progress-label"><span id="rating-touched-count">0</span> of 8 rated</span>
+        <div class="rating-progress-track"><div class="rating-progress-fill" id="rating-progress-fill"></div></div>
       </div>
 
-      <button class="btn-primary step-next" data-next="3" id="step2-next" disabled>
+      <div class="rating-cards" id="rating-cards">
+
+        <div class="rating-card" id="card-physical">
+          <div class="rating-card-header">
+            <span class="rating-dim-name">Physical</span>
+            <span class="rating-dim-label">Nourishment, Rest &amp; Recovery</span>
+          </div>
+          <div class="rating-slider-row">
+            <span class="rating-scale-label">No Support</span>
+            <input type="range" class="rating-slider" id="slider-physical" data-dim="physical" min="0" max="10" step="1" value="0" data-touched="false">
+            <span class="rating-score" id="score-physical">—</span>
+            <span class="rating-scale-label">Exceptional</span>
+          </div>
+          <details class="rating-accordion">
+            <summary>What does this include? ▾</summary>
+            <p>Think about access to food (dining halls, food pantries), quality of sleep environments in housing, campus recreation and fitness facilities, and access to student health services when you were sick or recovering.</p>
+          </details>
+        </div>
+
+        <div class="rating-card" id="card-emotional">
+          <div class="rating-card-header">
+            <span class="rating-dim-name">Emotional</span>
+            <span class="rating-dim-label">Mental Health &amp; Crisis Support</span>
+          </div>
+          <div class="rating-slider-row">
+            <span class="rating-scale-label">No Support</span>
+            <input type="range" class="rating-slider" id="slider-emotional" data-dim="emotional" min="0" max="10" step="1" value="0" data-touched="false">
+            <span class="rating-score" id="score-emotional">—</span>
+            <span class="rating-scale-label">Exceptional</span>
+          </div>
+          <details class="rating-accordion">
+            <summary>What does this include? ▾</summary>
+            <p>Think about counseling availability, wait times for appointments, crisis response, how openly mental health is talked about on campus, and whether you felt safe asking for help.</p>
+          </details>
+        </div>
+
+        <div class="rating-card" id="card-intellectual">
+          <div class="rating-card-header">
+            <span class="rating-dim-name">Intellectual</span>
+            <span class="rating-dim-label">Academic Support &amp; Risk Navigation</span>
+          </div>
+          <div class="rating-slider-row">
+            <span class="rating-scale-label">No Support</span>
+            <input type="range" class="rating-slider" id="slider-intellectual" data-dim="intellectual" min="0" max="10" step="1" value="0" data-touched="false">
+            <span class="rating-score" id="score-intellectual">—</span>
+            <span class="rating-scale-label">Exceptional</span>
+          </div>
+          <details class="rating-accordion">
+            <summary>What does this include? ▾</summary>
+            <p>Think about tutoring, academic advising quality, early warning systems when you were struggling, access to office hours, academic probation support, and how the campus communicated academic risk to you.</p>
+          </details>
+        </div>
+
+        <div class="rating-card" id="card-social">
+          <div class="rating-card-header">
+            <span class="rating-dim-name">Social</span>
+            <span class="rating-dim-label">Belonging, Inclusion &amp; Community</span>
+          </div>
+          <div class="rating-slider-row">
+            <span class="rating-scale-label">No Support</span>
+            <input type="range" class="rating-slider" id="slider-social" data-dim="social" min="0" max="10" step="1" value="0" data-touched="false">
+            <span class="rating-score" id="score-social">—</span>
+            <span class="rating-scale-label">Exceptional</span>
+          </div>
+          <details class="rating-accordion">
+            <summary>What does this include? ▾</summary>
+            <p>Think about whether you felt welcomed, whether you found your people, the quality of residential life, availability of student organizations, and how inclusive the campus culture felt across different identities and backgrounds.</p>
+          </details>
+        </div>
+
+        <div class="rating-card" id="card-spiritual">
+          <div class="rating-card-header">
+            <span class="rating-dim-name">Spiritual</span>
+            <span class="rating-dim-label">Orientation, Purpose &amp; Campus Culture</span>
+          </div>
+          <div class="rating-slider-row">
+            <span class="rating-scale-label">No Support</span>
+            <input type="range" class="rating-slider" id="slider-spiritual" data-dim="spiritual" min="0" max="10" step="1" value="0" data-touched="false">
+            <span class="rating-score" id="score-spiritual">—</span>
+            <span class="rating-scale-label">Exceptional</span>
+          </div>
+          <details class="rating-accordion">
+            <summary>What does this include? ▾</summary>
+            <p>Think about the quality of onboarding and orientation, whether student government felt representative, whether campus values aligned with yours, and whether the institution gave you a sense of direction beyond academics.</p>
+          </details>
+        </div>
+
+        <div class="rating-card" id="card-environmental">
+          <div class="rating-card-header">
+            <span class="rating-dim-name">Environmental</span>
+            <span class="rating-dim-label">Safety, Housing &amp; Campus Navigability</span>
+          </div>
+          <div class="rating-slider-row">
+            <span class="rating-scale-label">No Support</span>
+            <input type="range" class="rating-slider" id="slider-environmental" data-dim="environmental" min="0" max="10" step="1" value="0" data-touched="false">
+            <span class="rating-score" id="score-environmental">—</span>
+            <span class="rating-scale-label">Exceptional</span>
+          </div>
+          <details class="rating-accordion">
+            <summary>What does this include? ▾</summary>
+            <p>Think about housing quality and availability, campus security and lighting, ease of getting around, access to quiet and open spaces, and whether the physical environment supported your ability to study and rest.</p>
+          </details>
+        </div>
+
+        <div class="rating-card" id="card-occupational">
+          <div class="rating-card-header">
+            <span class="rating-dim-name">Occupational</span>
+            <span class="rating-dim-label">Career Direction &amp; Opportunity Access</span>
+          </div>
+          <div class="rating-slider-row">
+            <span class="rating-scale-label">No Support</span>
+            <input type="range" class="rating-slider" id="slider-occupational" data-dim="occupational" min="0" max="10" step="1" value="0" data-touched="false">
+            <span class="rating-score" id="score-occupational">—</span>
+            <span class="rating-scale-label">Exceptional</span>
+          </div>
+          <details class="rating-accordion">
+            <summary>What does this include? ▾</summary>
+            <p>Think about career services quality, internship and job placement support, ease of choosing or changing your major, access to research or work opportunities on campus, and whether faculty and advisors helped you connect your studies to your future.</p>
+          </details>
+        </div>
+
+        <div class="rating-card" id="card-financial">
+          <div class="rating-card-header">
+            <span class="rating-dim-name">Financial</span>
+            <span class="rating-dim-label">Affordability, Aid &amp; Value</span>
+          </div>
+          <div class="rating-slider-row">
+            <span class="rating-scale-label">No Support</span>
+            <input type="range" class="rating-slider" id="slider-financial" data-dim="financial" min="0" max="10" step="1" value="0" data-touched="false">
+            <span class="rating-score" id="score-financial">—</span>
+            <span class="rating-scale-label">Exceptional</span>
+          </div>
+          <details class="rating-accordion">
+            <summary>What does this include? ▾</summary>
+            <p>Think about the clarity and accessibility of financial aid, scholarship availability, the overall burden of cost relative to what you received, and whether the campus helped you understand and manage your financial situation as a student.</p>
+          </details>
+        </div>
+
+      </div>
+
+      <button class="btn-primary" id="step2-next" disabled>
         Continue →
       </button>
     </div>
@@ -715,12 +852,17 @@ function renderSubmitFlow(campus, allCampuses = []) {
       campus_name:     '${campus?.name || ''}',
       community_tags:  [],
       subject_tag:     null,
+      subject_tags:    [],
       dimension_tag:   null,
       feedback_text:   '',
       wish_text:       '',
       wish_dimension:  null,
       year_in_school:  null,
-      major:           null
+      major:           null,
+      ratings: {
+        physical: null, emotional: null, intellectual: null, social: null,
+        spiritual: null, environmental: null, occupational: null, financial: null
+      }
     }
 
     // ── Step navigation ────────────────────────────────────
@@ -733,7 +875,6 @@ function renderSubmitFlow(campus, allCampuses = []) {
       if (state.year_in_school) parts.push({ label: state.year_in_school, type: 'community' })
       if (state.community_tags?.length) parts.push({ label: state.community_tags.join(', '), type: 'community' })
       if (state.subject_tags?.length) parts.push({ label: state.subject_tags.join(' + '), type: 'subject' })
-      if (state.dimension_tags?.length) parts.push({ label: state.dimension_tags.join(' + '), type: 'dimension' })
 
       if (parts.length > 0) {
         bar.style.display = 'block'
@@ -755,6 +896,7 @@ function renderSubmitFlow(campus, allCampuses = []) {
       updateContextBar()
       if (n === 2 && state.campus_name) {
         document.getElementById("step2-heading").textContent = state.campus_name
+        document.querySelector('#step-2 .step-eyebrow').textContent = 'Rate Your Campus'
       }
       if (n === 3) {
         document.getElementById("step3-heading").textContent =
@@ -837,33 +979,57 @@ function renderSubmitFlow(campus, allCampuses = []) {
         state.subject_tag = state.subject_tags[0] || null
         checkStep2()
       })
-    // ── Multi-select dimension (Holistic exclusive) ────────
-    document.getElementById('dimension-tags')
-      .addEventListener('click', e => {
-        const btn = e.target.closest('.bubble')
-        if (!btn) return
-        const isHolistic = btn.dataset.value === 'holistic'
-        const hasHolistic = !!document.querySelector('#dimension-tags .bubble[data-value="holistic"].selected')
-        const already = btn.classList.contains('selected')
-        const count = document.querySelectorAll('#dimension-tags .bubble.selected').length
-        if (already) {
-          btn.classList.remove('selected')
-        } else if (isHolistic) {
-          document.querySelectorAll('#dimension-tags .bubble').forEach(b => b.classList.remove('selected'))
-          btn.classList.add('selected')
-        } else if (hasHolistic) {
-          return
-        } else if (count < 2) {
-          btn.classList.add('selected')
+    // ── Rating sliders (Step 2) ────────────────────────────
+    const RATING_DIMS = ['physical','emotional','intellectual','social','spiritual','environmental','occupational','financial']
+
+    RATING_DIMS.forEach(dim => {
+      document.getElementById('slider-' + dim).addEventListener('input', function () {
+        if (this.dataset.touched === 'false') {
+          this.dataset.touched = 'true'
+          updateRatingProgress()
         }
-        state.dimension_tags = Array.from(document.querySelectorAll('#dimension-tags .bubble.selected')).map(b => b.dataset.value)
-        state.dimension_tag = state.dimension_tags[0] || null
+        state.ratings[dim] = parseInt(this.value)
+        document.getElementById('score-' + dim).textContent = this.value
+        document.getElementById('card-' + dim).classList.remove('rating-card-error')
         checkStep2()
       })
-    function checkStep2() {
-      const hasDimension = state.dimension_tags?.length > 0 || state.dimension_tag
-      document.getElementById('step2-next').disabled = !hasDimension
+    })
+
+    // Accordion: one open at a time
+    document.querySelectorAll('.rating-accordion summary').forEach(summary => {
+      summary.addEventListener('click', () => {
+        const thisEl = summary.parentElement
+        document.querySelectorAll('.rating-accordion').forEach(d => {
+          if (d !== thisEl) d.removeAttribute('open')
+        })
+      })
+    })
+
+    function updateRatingProgress() {
+      const touched = RATING_DIMS.filter(d => state.ratings[d] !== null).length
+      document.getElementById('rating-touched-count').textContent = touched
+      document.getElementById('rating-progress-fill').style.width = (touched / 8 * 100) + '%'
     }
+
+    function checkStep2() {
+      const allRated = RATING_DIMS.every(d => state.ratings[d] !== null)
+      document.getElementById('step2-next').disabled = !allRated
+    }
+
+    document.getElementById('step2-next').addEventListener('click', () => {
+      const firstMissing = RATING_DIMS.find(d => state.ratings[d] === null)
+      if (firstMissing) {
+        const card = document.getElementById('card-' + firstMissing)
+        card.classList.add('rating-card-error')
+        card.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        return
+      }
+      // Derive dimension_tag from highest-rated dimension (drives archetype on server)
+      state.dimension_tag = RATING_DIMS.reduce((a, b) =>
+        (state.ratings[a] ?? -1) >= (state.ratings[b] ?? -1) ? a : b
+      )
+      goToStep(3)
+    })
     // ── Section 1: sentence starter + textarea ─────────────
     const textarea    = document.getElementById('feedback-text')
     const charCurrent = document.getElementById('char-current')
@@ -932,6 +1098,9 @@ function renderSubmitFlow(campus, allCampuses = []) {
         fd.append("campus_id", state.campus_id)
         fd.append("subject_tag", (state.subject_tags || []).join(','))
         fd.append("dimension_tag", state.dimension_tag || "")
+        ;['physical','emotional','intellectual','social','spiritual','environmental','occupational','financial'].forEach(d => {
+          if (state.ratings[d] !== null) fd.append('rating_' + d, state.ratings[d])
+        })
         fd.append("feedback_text", state.feedback_text)
         if (state.wish_text.trim()) fd.append("wish_text", state.wish_text.trim())
         if (state.wish_dimension) fd.append("wish_dimension", state.wish_dimension)

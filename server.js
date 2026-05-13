@@ -238,9 +238,9 @@ app.post('/api/submit', submitLimiter, upload.single('image'), async (req, res) 
   const { wish_text, wish_dimension } = req.body
 
   // Basic validation
-  if (!campus_id || !subject_tag || !dimension_tag) {
+  if (!campus_id || !dimension_tag) {
     return res.status(400).json({
-      error: 'Missing required fields: campus_id, subject_tag, dimension_tag'
+      error: 'Missing required fields: campus_id, dimension_tag'
     })
   }
 
@@ -299,7 +299,7 @@ app.post('/api/submit', submitLimiter, upload.single('image'), async (req, res) 
       .insert({
         campus_id,
         submitter_id: submitter.id,
-        subject_tag,
+        subject_tag: subject_tag || null,
         dimension_tag,
         prompt_mode: prompt_mode || 'free',
         prompt_used: prompt_used || null,
@@ -577,17 +577,7 @@ function renderSubmitFlow(campus, allCampuses = []) {
     <div class="step hidden" id="step-2">
       <p class="step-eyebrow">Your feedback</p>
       <h2 id="step2-heading">What are you speaking to?</h2>
-      <p class="step-sub">Pick one subject and one dimension.</p>
-
-      <h3 class="field-label">Subject <span class="field-hint">(pick up to 2)</span></h3>
-      <div class="bubble-grid single" id="subject-tags">
-        <button class="bubble" data-value="campus-overall">Campus Overall</button>
-        <button class="bubble" data-value="department-major">Department / Major</button>
-        <button class="bubble" data-value="facility">Facility</button>
-        <button class="bubble" data-value="program">Program</button>
-        <button class="bubble" data-value="resource">Resource</button>
-        <button class="bubble" data-value="transition-experience">Transition Experience</button>
-      </div>
+      <p class="step-sub">Pick a wellness dimension.</p>
 
       <h3 class="field-label">Wellness Dimension <span class="field-hint">(pick up to 2)</span></h3>
       <div class="bubble-grid single" id="dimension-tags">
@@ -609,6 +599,16 @@ function renderSubmitFlow(campus, allCampuses = []) {
 
     <!-- Step 3: Your feedback -->
     <div class="step hidden" id="step-3">
+      <h3 class="field-label" style="margin-bottom:0.5rem">Subject <span class="field-hint">(pick up to 2)</span></h3>
+      <div class="bubble-grid single" id="subject-tags" style="margin-bottom:1.5rem">
+        <button class="bubble" data-value="campus-overall">Campus Overall</button>
+        <button class="bubble" data-value="department-major">Department / Major</button>
+        <button class="bubble" data-value="facility">Facility</button>
+        <button class="bubble" data-value="program">Program</button>
+        <button class="bubble" data-value="resource">Resource</button>
+        <button class="bubble" data-value="transition-experience">Transition Experience</button>
+      </div>
+
       <p class="step-eyebrow">Your Voice</p>
       <h2 id="step3-heading">What's the wellbeing experience really like?</h2>
 
@@ -845,9 +845,8 @@ function renderSubmitFlow(campus, allCampuses = []) {
         checkStep2()
       })
     function checkStep2() {
-      const hasSubject = state.subject_tags?.length > 0 || state.subject_tag
       const hasDimension = state.dimension_tags?.length > 0 || state.dimension_tag
-      document.getElementById('step2-next').disabled = !(hasSubject && hasDimension)
+      document.getElementById('step2-next').disabled = !hasDimension
     }
     // ── Section 1: sentence starter + textarea ─────────────
     const textarea    = document.getElementById('feedback-text')
@@ -915,7 +914,7 @@ function renderSubmitFlow(campus, allCampuses = []) {
       try {
         const fd = new FormData()
         fd.append("campus_id", state.campus_id)
-        fd.append("subject_tag", state.subject_tag || "")
+        fd.append("subject_tag", (state.subject_tags || []).join(','))
         fd.append("dimension_tag", state.dimension_tag || "")
         fd.append("feedback_text", state.feedback_text)
         if (state.wish_text.trim()) fd.append("wish_text", state.wish_text.trim())

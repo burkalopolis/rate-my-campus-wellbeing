@@ -602,19 +602,19 @@ function renderSubmitFlow(campus, allCampuses = []) {
       <p class="step-eyebrow">Your Voice</p>
       <h2 id="step3-heading">What's the wellbeing experience really like?</h2>
 
-      <h3 class="field-label" style="margin-top:1rem;margin-bottom:0.5rem">Subject <span class="field-hint">(pick up to 2)</span></h3>
-      <div class="bubble-grid single" id="subject-tags" style="margin-bottom:1.5rem">
-        <button class="bubble" data-value="campus-overall">Campus Overall</button>
-        <button class="bubble" data-value="department-major">Department / Major</button>
-        <button class="bubble" data-value="facility">Facility</button>
-        <button class="bubble" data-value="program">Program</button>
-        <button class="bubble" data-value="resource">Resource</button>
-        <button class="bubble" data-value="transition-experience">Transition Experience</button>
-      </div>
-
       <!-- Section 1 -->
       <div class="feedback-section">
         <h3 class="feedback-section-label">What do you want to share about your experience?</h3>
+
+        <h3 class="field-label" style="margin-top:0.75rem;margin-bottom:0.5rem">Subject <span class="field-hint">(pick up to 2)</span></h3>
+        <div class="bubble-grid single" id="subject-tags" style="margin-bottom:1rem">
+          <button class="bubble" data-value="campus-overall">Campus Overall</button>
+          <button class="bubble" data-value="department-major">Department / Major</button>
+          <button class="bubble" data-value="facility">Facility</button>
+          <button class="bubble" data-value="program">Program</button>
+          <button class="bubble" data-value="resource">Resource</button>
+          <button class="bubble" data-value="transition-experience">Transition Experience</button>
+        </div>
 
         <select id="prompt-select" class="campus-dropdown">
           <option value="">— Choose a sentence starter (optional) —</option>

@@ -599,7 +599,10 @@ function renderSubmitFlow(campus, allCampuses = []) {
 
     <!-- Step 3: Your feedback -->
     <div class="step hidden" id="step-3">
-      <h3 class="field-label" style="margin-bottom:0.5rem">Subject <span class="field-hint">(pick up to 2)</span></h3>
+      <p class="step-eyebrow">Your Voice</p>
+      <h2 id="step3-heading">What's the wellbeing experience really like?</h2>
+
+      <h3 class="field-label" style="margin-top:1rem;margin-bottom:0.5rem">Subject <span class="field-hint">(pick up to 2)</span></h3>
       <div class="bubble-grid single" id="subject-tags" style="margin-bottom:1.5rem">
         <button class="bubble" data-value="campus-overall">Campus Overall</button>
         <button class="bubble" data-value="department-major">Department / Major</button>
@@ -608,9 +611,6 @@ function renderSubmitFlow(campus, allCampuses = []) {
         <button class="bubble" data-value="resource">Resource</button>
         <button class="bubble" data-value="transition-experience">Transition Experience</button>
       </div>
-
-      <p class="step-eyebrow">Your Voice</p>
-      <h2 id="step3-heading">What's the wellbeing experience really like?</h2>
 
       <!-- Section 1 -->
       <div class="feedback-section">

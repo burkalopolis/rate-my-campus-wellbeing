@@ -265,20 +265,6 @@ app.post('/api/submit', submitLimiter, upload.single('image'), async (req, res) 
   }
 
   try {
-    // 0. Upload image if provided
-    let image_url = null
-    if (req.file) {
-      const ext = req.file.mimetype === "image/gif" ? "gif" : req.file.mimetype === "image/png" ? "png" : "jpg"
-      const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
-      const { error: uploadError } = await supabaseAdmin.storage
-        .from("submission-images")
-        .upload(filename, req.file.buffer, { contentType: req.file.mimetype, upsert: false })
-      if (!uploadError) {
-        const { data: urlData } = supabaseAdmin.storage.from("submission-images").getPublicUrl(filename)
-        image_url = urlData.publicUrl
-      } else { console.warn("Image upload failed:", uploadError.message) }
-    }
-
     // 1. Create submitter record
     const { data: submitter, error: submitterError } = await supabase
       .from('submitters')
@@ -293,26 +279,34 @@ app.post('/api/submit', submitLimiter, upload.single('image'), async (req, res) 
     if (submitterError) throw submitterError
 
     // 2. Create submission record
-    // Note: archetype_derived is set automatically by the database trigger
+    // Schema: campus_id, submitter_id, subject_tag, dimension_tag, archetype_derived (trigger),
+    //   prompt_mode, prompt_used, feedback_text, year_in_school, major,
+    //   flagged (bool NOT NULL), flag_reason, created_at (auto),
+    //   deleted, guidance_dimension, guidance_text, communities (text),
+    //   rating_physical/emotional/intellectual/social/spiritual/environmental/occupational/financial
+    // Removed: approved, image_url
     const feedbackTrimmed = (feedback_text || '').trim()
+
+    // communities arrives as repeated FormData fields — normalise to comma-separated text
+    const communitiesText = Array.isArray(community_tags)
+      ? community_tags.join(',')
+      : (community_tags || null)
+
     const insertPayload = {
       campus_id,
       submitter_id:  submitter.id,
-      // subject and dimension — send null if not provided (DB must allow null)
       subject_tag:   subject_tag   || null,
       dimension_tag: dimension_tag || null,
-      // prompt
       prompt_mode:   prompt_mode   || 'free',
       prompt_used:   prompt_used   || null,
-      // feedback — send null if empty (DB column must be nullable)
       feedback_text: feedbackTrimmed || null,
-      // optional context
       year_in_school: year_in_school || null,
       major:          major          || null,
-      image_url:      image_url      || null,
-      // soft-delete flag (new column — boolean, default false)
-      deleted: false,
-      // per-dimension numeric ratings (new columns, all nullable)
+      flagged:        false,
+      deleted:        false,
+      guidance_text:      wish_text      || null,
+      guidance_dimension: wish_dimension || null,
+      communities:    communitiesText   || null,
       rating_physical:      null,
       rating_emotional:     null,
       rating_intellectual:  null,
@@ -320,17 +314,8 @@ app.post('/api/submit', submitLimiter, upload.single('image'), async (req, res) 
       rating_spiritual:     null,
       rating_environmental: null,
       rating_occupational:  null,
-      rating_financial:     null,
-      // guidance / wish fields (new columns, all nullable)
-      guidance_text:      wish_text      || null,
-      guidance_dimension: wish_dimension || null,
-      // community tags on submission (new column — text array)
-      communities: Array.isArray(community_tags)
-        ? community_tags
-        : (community_tags ? [community_tags] : [])
+      rating_financial:     null
     }
-
-    console.log('Insert payload keys:', Object.keys(insertPayload))
 
     const { data: submission, error: submissionError } = await supabase
       .from('submissions')

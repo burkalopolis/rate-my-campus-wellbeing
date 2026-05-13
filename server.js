@@ -92,16 +92,17 @@ app.get('/submit', async (req, res) => {
   const campusSlug = req.query.campus
   let campus = null
 
-  if (campusSlug) {
-    const { data } = await supabase
-      .from('campuses')
-      .select('id, slug, name, system, city')
-      .eq('slug', campusSlug)
-      .single()
-    campus = data
-  }
+  const [campusResult, allCampusesResult] = await Promise.all([
+    campusSlug
+      ? supabase.from('campuses').select('id, slug, name, system, city').eq('slug', campusSlug).single()
+      : Promise.resolve({ data: null }),
+    supabase.from('campuses').select('id, slug, name, system').eq('active', true).order('system').order('name')
+  ])
 
-  res.send(renderSubmitFlow(campus))
+  campus = campusResult.data
+  const allCampuses = allCampusesResult.data || []
+
+  res.send(renderSubmitFlow(campus, allCampuses))
 })
 
 // ── Campus public page ──────────────────────────────────────
@@ -476,7 +477,22 @@ function renderLanding(uc, csu, other) {
 </html>`
 }
 
-function renderSubmitFlow(campus) {
+function renderSubmitFlow(campus, allCampuses = []) {
+  const uc    = allCampuses.filter(c => c.system === 'UC')
+  const csu   = allCampuses.filter(c => c.system === 'CSU')
+  const other = allCampuses.filter(c => c.system !== 'UC' && c.system !== 'CSU')
+
+  const campusOptions = (list, label) =>
+    list.length === 0 ? '' :
+    `<optgroup label="${label}">${list.map(c =>
+      `<option value="${c.id}" data-slug="${c.slug}"${campus?.id === c.id ? ' selected' : ''}>${c.name}</option>`
+    ).join('')}</optgroup>`
+
+  const campusDropdownOptions =
+    campusOptions(uc, 'University of California') +
+    campusOptions(csu, 'California State University') +
+    campusOptions(other, 'Other')
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -502,64 +518,54 @@ function renderSubmitFlow(campus) {
     <!-- Step 1: Who are you? -->
     <div class="step" id="step-1">
       <p class="step-eyebrow">About you</p>
-      <h2>Which communities are you part of?</h2>
-      <p class="step-sub">Select all that apply. Completely optional.</p>
+      <h2>Tell us a little about yourself</h2>
+      <p class="step-sub">Helps us give your feedback context. All optional if you prefer not to share.</p>
 
+      <h3 class="field-label">Which campus are you at?</h3>
+      <select id="step1-campus-select" class="campus-dropdown">
+        <option value="">— Choose your campus —</option>
+        ${campusDropdownOptions}
+      </select>
+
+      <h3 class="field-label" style="margin-top:1.5rem">What year are you?</h3>
+      <div class="bubble-grid" id="year-select">
+        <button class="bubble" data-value="1st">1st year</button>
+        <button class="bubble" data-value="2nd">2nd year</button>
+        <button class="bubble" data-value="3rd">3rd year</button>
+        <button class="bubble" data-value="4th">4th year</button>
+        <button class="bubble" data-value="5th+">5th+ year</button>
+        <button class="bubble" data-value="grad">Grad</button>
+        <button class="bubble" data-value="alumni">Alumni</button>
+        <button class="bubble" data-value="dropout">Dropout</button>
+      </div>
+
+      <label class="skip-label" style="margin-top:1rem;display:flex;align-items:center;gap:0.6rem;cursor:pointer">
+        <input type="checkbox" id="skip-campus-year" style="width:1.1rem;height:1.1rem;cursor:pointer">
+        <span>Prefer not to say — skip campus and year</span>
+      </label>
+
+      <h3 class="field-label" style="margin-top:1.75rem">Which communities are you part of?</h3>
+      <p class="step-sub">Select all that apply. Completely optional.</p>
       <div class="bubble-grid" id="community-tags">
-        <button class="bubble" data-value="first-gen">First-Gen</button>
+        <button class="bubble" data-value="on-campus-living">On Campus Living</button>
+        <button class="bubble" data-value="commuter">Commuter</button>
+        <button class="bubble" data-value="first-gen">First-Generation</button>
         <button class="bubble" data-value="transfer">Transfer</button>
         <button class="bubble" data-value="international">International</button>
-        <button class="bubble" data-value="lgbtq">LGBTQ+</button>
-        <button class="bubble" data-value="disability">Disability</button>
+        <button class="bubble" data-value="clubs">Clubs</button>
+        <button class="bubble" data-value="intramurals">Intramurals</button>
+        <button class="bubble" data-value="student-gov">Student Government</button>
         <button class="bubble" data-value="greek-life">Greek Life</button>
         <button class="bubble" data-value="athletics">Athletics</button>
-        <button class="bubble" data-value="student-gov">Student Gov</button>
+        <button class="bubble" data-value="working">Working while Enrolled</button>
+        <button class="bubble" data-value="parent">Parent while Enrolled</button>
+        <button class="bubble" data-value="lgbtq">LGBTQ+</button>
+        <button class="bubble" data-value="disability">Disability</button>
         <button class="bubble" data-value="veteran">Veteran</button>
-        <button class="bubble" data-value="commuter">Commuter</button>
-        <button class="bubble" data-value="graduate">Graduate</button>
-        <button class="bubble" data-value="intramurals">Intramurals</button>
-        <button class="bubble" data-value="clubs">Clubs</button>
-        <button class="bubble" data-value="on-campus-living">On Campus Living</button>
         <button class="bubble" data-value="undocumented">Undocumented/DACA</button>
       </div>
 
-      <h3 class="section-divider">Which archetype does college most activate in you?</h3>
-      <p class="step-sub">Go with your gut — this is about what your campus brings out in you. Optional.</p>
-
-      <div class="archetype-grid" id="archetype-select">
-        <button class="archetype-card guardian" data-value="guardian">
-          <span class="arch-emoji">🏔️</span>
-          <span class="arch-name">Architect</span>
-          <span class="arch-phase">Prepare</span>
-          <span class="arch-desc">You notice things before they become problems.</span>
-        </button>
-        <button class="archetype-card warrior" data-value="warrior">
-          <span class="arch-emoji">⚡</span>
-          <span class="arch-name">Warrior</span>
-          <span class="arch-phase">Respond</span>
-          <span class="arch-desc">Pressure doesn't break you. It activates you.</span>
-        </button>
-        <button class="archetype-card guide" data-value="guide">
-          <span class="arch-emoji">🍃</span>
-          <span class="arch-name">Guide</span>
-          <span class="arch-phase">Anticipate</span>
-          <span class="arch-desc">Where others see the present, you see the pattern.</span>
-        </button>
-        <button class="archetype-card healer" data-value="healer">
-          <span class="arch-emoji">💦</span>
-          <span class="arch-name">Healer</span>
-          <span class="arch-phase">Recover</span>
-          <span class="arch-desc">You know how to bounce back.</span>
-        </button>
-      </div>
-
-      <a class="discover-link"
-         href="https://www.campusmind.org/demo"
-         target="_blank">
-        Not sure? Discover your archetype at CampusMind →
-      </a>
-
-      <button class="btn-primary step-next" data-next="2">
+      <button class="btn-primary step-next" data-next="2" id="step1-next" disabled>
         Continue →
       </button>
     </div>
@@ -648,16 +654,6 @@ function renderSubmitFlow(campus) {
       </div>
 
       <div class="optional-fields">
-        <p class="field-label">A little more context (optional)</p>
-        <div class="year-pills" id="year-select">
-          <button class="bubble" data-value="1st">1st year</button>
-          <button class="bubble" data-value="2nd">2nd year</button>
-          <button class="bubble" data-value="3rd">3rd year</button>
-          <button class="bubble" data-value="4th">4th year</button>
-          <button class="bubble" data-value="grad">Grad</button>
-          <button class="bubble" data-value="alumni">Alumni</button>
-          <button class="bubble" data-value="dropout">Dropout</button>
-        </div>
         <input
           type="text"
           id="major-input"
@@ -690,7 +686,6 @@ function renderSubmitFlow(campus) {
       campus_slug:     '${campus?.slug || ''}',
       campus_name:     '${campus?.name || ''}',
       community_tags:  [],
-      archetype_self:  null,
       subject_tag:     null,
       dimension_tag:   null,
       prompt_mode:     'free',
@@ -707,8 +702,8 @@ function renderSubmitFlow(campus) {
       const parts = []
 
       if (state.campus_name) parts.push({ label: state.campus_name, type: 'campus' })
+      if (state.year_in_school) parts.push({ label: state.year_in_school, type: 'community' })
       if (state.community_tags?.length) parts.push({ label: state.community_tags.join(', '), type: 'community' })
-      if (state.archetype_self) parts.push({ label: state.archetype_self.charAt(0).toUpperCase() + state.archetype_self.slice(1), type: 'archetype' })
       if (state.subject_tags?.length) parts.push({ label: state.subject_tags.join(' + '), type: 'subject' })
       if (state.dimension_tags?.length) parts.push({ label: state.dimension_tags.join(' + '), type: 'dimension' })
 
@@ -743,6 +738,55 @@ function renderSubmitFlow(campus) {
       window.scrollTo(0, 0)
     }
 
+    // ── Step 1 validation ──────────────────────────────────
+    function checkStep1() {
+      const skip = document.getElementById('skip-campus-year').checked
+      const hasCampus = !!state.campus_id
+      const hasYear   = !!state.year_in_school
+      document.getElementById('step1-next').disabled = !(skip || (hasCampus && hasYear))
+    }
+
+    // ── Campus dropdown (Step 1) ───────────────────────────
+    document.getElementById('step1-campus-select')
+      .addEventListener('change', e => {
+        const opt = e.target.selectedOptions[0]
+        state.campus_id   = e.target.value
+        state.campus_slug = opt?.dataset.slug || ''
+        state.campus_name = opt?.text || ''
+        checkStep1()
+      })
+
+    // ── Skip campus/year checkbox ──────────────────────────
+    document.getElementById('skip-campus-year')
+      .addEventListener('change', e => {
+        const skip = e.target.checked
+        document.getElementById('step1-campus-select').disabled = skip
+        document.querySelectorAll('#year-select .bubble').forEach(b => {
+          b.disabled = skip
+          if (skip) b.classList.remove('selected')
+        })
+        if (skip) {
+          state.campus_id   = ''
+          state.campus_slug = ''
+          state.campus_name = ''
+          state.year_in_school = null
+          document.getElementById('step1-campus-select').value = ''
+        }
+        checkStep1()
+      })
+
+    // ── Year pills (Step 1) ────────────────────────────────
+    document.getElementById('year-select')
+      .addEventListener('click', e => {
+        const btn = e.target.closest('.bubble')
+        if (!btn || btn.disabled) return
+        document.querySelectorAll('#year-select .bubble')
+          .forEach(b => b.classList.remove('selected'))
+        btn.classList.add('selected')
+        state.year_in_school = btn.dataset.value
+        checkStep1()
+      })
+
     // ── Multi-select bubbles (community tags) ──────────────
     document.getElementById('community-tags')
       .addEventListener('click', e => {
@@ -757,23 +801,15 @@ function renderSubmitFlow(campus) {
         }
       })
 
-    // ── Single-select archetype ────────────────────────────
-    document.getElementById('archetype-select')
-      .addEventListener('click', e => {
-        const btn = e.target.closest('.archetype-card')
-        if (!btn) return
-        document.querySelectorAll('.archetype-card')
-          .forEach(b => b.classList.remove('selected'))
-        btn.classList.add('selected')
-        state.archetype_self = btn.dataset.value
-      })
-
-    // ── Step 1 → Step 2 ────────────────────────────────────
+    // ── Step next buttons ──────────────────────────────────
     document.querySelectorAll('.step-next').forEach(btn => {
       btn.addEventListener('click', () => {
         goToStep(parseInt(btn.dataset.next))
       })
     })
+
+    // ── Initialize Step 1 state from server-side campus ───
+    checkStep1()
 
     // ── Single-select subject ──────────────────────────────
     document.getElementById('subject-tags')
@@ -886,17 +922,6 @@ function renderSubmitFlow(campus) {
       imageLabel.style.display = ""
     })
 
-    // ── Year pills ─────────────────────────────────────────
-    document.getElementById('year-select')
-      .addEventListener('click', e => {
-        const btn = e.target.closest('.bubble')
-        if (!btn) return
-        document.querySelectorAll('#year-select .bubble')
-          .forEach(b => b.classList.remove('selected'))
-        btn.classList.add('selected')
-        state.year_in_school = btn.dataset.value
-      })
-
     // ── Major input ────────────────────────────────────────
     document.getElementById('major-input').addEventListener('input', e => {
       state.major = e.target.value || null
@@ -917,7 +942,6 @@ function renderSubmitFlow(campus) {
         if (state.prompt_used) fd.append("prompt_used", state.prompt_used)
         if (state.year_in_school) fd.append("year_in_school", state.year_in_school)
         if (state.major) fd.append("major", state.major)
-        if (state.archetype_self) fd.append("archetype_self", state.archetype_self)
         ;(state.community_tags || []).forEach(t => fd.append("community_tags", t))
         if (state.imageFile) fd.append("image", state.imageFile)
         const res = await fetch("/api/submit", { method: "POST", body: fd })

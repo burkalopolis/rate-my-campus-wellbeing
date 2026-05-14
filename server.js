@@ -2240,9 +2240,11 @@ function renderAdminDashboard(normal, archived, deleted, total) {
 
   function buildCard(s, mode) {
     const communityTags = s.communities ? s.communities.split(',').map(t => t.trim()).filter(Boolean) : []
-    const date = new Date(s.created_at).toLocaleDateString('en-US', {
-      month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/Los_Angeles'
-    })
+    const dt = new Date(s.created_at)
+    const dateStr = dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/Los_Angeles' })
+    const timeStr = dt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/Los_Angeles', hour12: true })
+    const timestamp = dateStr + ' · ' + timeStr + ' PT'
+
     const ratingPills = RATING_KEYS.map(([col, label]) => {
       const v = s[col]
       return '<span style="display:inline-flex;align-items:center;gap:2px;padding:2px 6px;border-radius:10px;font-size:11px;font-weight:600;background:' +
@@ -2283,14 +2285,17 @@ function renderAdminDashboard(normal, archived, deleted, total) {
       ].join('')
     }
 
+    const campusName = escapeHtml(s.campuses?.name || 'Unknown')
+    const yearVal    = escapeHtml(s.year_in_school || '')
+
     return [
-      '<div class="admin-row" id="row-' + s.id + '" data-campus="' + escapeHtml((s.campuses?.name || '').toLowerCase()) + '">',
+      '<div class="admin-row" id="row-' + s.id + '" data-campus="' + campusName + '" data-year="' + yearVal + '">',
       '<div class="admin-meta" style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:6px">',
-      '<strong style="font-size:14px">' + escapeHtml(s.campuses?.name || 'Unknown') + '</strong>',
+      '<strong style="font-size:14px">' + campusName + '</strong>',
       s.year_in_school ? '<span class="meta-pill">' + escapeHtml(s.year_in_school) + ' year</span>' : '',
       communityTags.map(t => '<span class="meta-pill">' + escapeHtml(t) + '</span>').join(''),
       s.subject_tag ? '<span class="meta-pill" style="background:#dbeafe;color:#1e40af">' + escapeHtml(s.subject_tag) + '</span>' : '',
-      '<span class="meta-date" style="margin-left:auto">' + date + '</span>',
+      '<span class="meta-date" style="margin-left:auto;font-size:11px;color:#9ca3af;white-space:nowrap">' + timestamp + '</span>',
       '</div>',
       '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px">' + ratingPills + '</div>',
       fbBlock,
@@ -2312,51 +2317,119 @@ function renderAdminDashboard(normal, archived, deleted, total) {
   <title>Admin Dashboard — RMCW</title>
   <meta name="robots" content="noindex, nofollow">
   <link rel="stylesheet" href="/style.css">
+  <style>
+    .admin-tab-bar{display:flex;gap:0;border-bottom:2px solid #e5e7eb;margin-bottom:20px;overflow-x:auto}
+    .admin-tab{padding:10px 20px;font-size:14px;font-weight:600;color:#6b7280;background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;cursor:pointer;white-space:nowrap;transition:color .15s,border-color .15s}
+    .admin-tab:hover{color:#1a1a2e}
+    .admin-tab.active{color:#3a86ff;border-bottom-color:#3a86ff}
+    .admin-filter-bar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}
+    .admin-filter-bar select{padding:7px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;background:#fff;color:#374151;cursor:pointer;min-width:160px}
+    .tab-panel{display:none}
+    .tab-panel.active{display:block}
+  </style>
 </head>
 <body>
   <div class="page-admin">
     <header class="nav">
       <span class="nav-logo">RMCW Admin</span>
-      <span class="admin-count">${total} submission${total === 1 ? '' : 's'}</span>
       <a href="/burkmin/logout" style="margin-left:auto;font-size:13px;color:#888;text-decoration:none;padding:5px 12px;border:1.5px solid #e5e7eb;border-radius:6px">Log out</a>
     </header>
     <main class="admin-main">
 
-      <div style="margin-bottom:20px">
-        <input id="search-bar" type="text" placeholder="Search by campus name…"
-          style="width:100%;max-width:400px;padding:8px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:14px"
-          oninput="filterCards(this.value)">
+      <div class="admin-tab-bar">
+        <button class="admin-tab active" data-tab="normal"   onclick="switchTab('normal')"  >All Submissions (<span id="count-normal">${normal.length}</span>)</button>
+        <button class="admin-tab"        data-tab="archived" onclick="switchTab('archived')" >Archived (<span id="count-archived">${archived.length}</span>)</button>
+        <button class="admin-tab"        data-tab="deleted"  onclick="switchTab('deleted')"  >Deleted (<span id="count-deleted">${deleted.length}</span>)</button>
       </div>
 
-      <div class="admin-section">
-        <h3 class="admin-section-title">All Submissions (${normal.length})</h3>
-        <div id="all-submissions">${normalHtml}</div>
+      <div class="admin-filter-bar">
+        <select id="filter-campus" onchange="applyFilters()">
+          <option value="">Filter by Campus</option>
+        </select>
+        <select id="filter-year" onchange="applyFilters()">
+          <option value="">Filter by Year</option>
+          <option value="1st">1st year</option>
+          <option value="2nd">2nd year</option>
+          <option value="3rd">3rd year</option>
+          <option value="4th">4th year</option>
+          <option value="5th+">5th+ year</option>
+          <option value="grad">Grad</option>
+          <option value="alumni">Alumni</option>
+          <option value="dropout">Dropout</option>
+        </select>
       </div>
 
-      <details style="margin-top:28px" ${archived.length > 0 ? '' : ''}>
-        <summary style="cursor:pointer;font-size:15px;font-weight:700;color:#6b7280;padding:8px 0;list-style:none;display:flex;align-items:center;gap:8px">
-          <span>▶</span> Archived (${archived.length})
-        </summary>
-        <div id="archived-submissions" style="margin-top:12px">${archivedHtml}</div>
-      </details>
-
-      <details style="margin-top:16px">
-        <summary style="cursor:pointer;font-size:15px;font-weight:700;color:#dc2626;padding:8px 0;list-style:none;display:flex;align-items:center;gap:8px">
-          <span>▶</span> Deleted (${deleted.length})
-        </summary>
-        <div id="deleted-submissions" style="margin-top:12px">${deletedHtml}</div>
-      </details>
+      <div id="panel-normal"   class="tab-panel active">${normalHtml}</div>
+      <div id="panel-archived" class="tab-panel">${archivedHtml}</div>
+      <div id="panel-deleted"  class="tab-panel">${deletedHtml}</div>
 
     </main>
   </div>
 
   <script>
-    function filterCards(q) {
-      q = q.toLowerCase().trim()
-      document.querySelectorAll('.admin-row').forEach(row => {
-        const campus = row.dataset.campus || ''
-        row.style.display = (!q || campus.includes(q)) ? '' : 'none'
+    let activeTab = 'normal'
+
+    function switchTab(tab) {
+      activeTab = tab
+      document.querySelectorAll('.admin-tab').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tab))
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'))
+      document.getElementById('panel-' + tab).classList.add('active')
+      document.getElementById('filter-campus').value = ''
+      document.getElementById('filter-year').value = ''
+      rebuildCampusDropdown()
+      applyFilters()
+    }
+
+    function rebuildCampusDropdown() {
+      const panel    = document.getElementById('panel-' + activeTab)
+      const seen     = new Set()
+      panel.querySelectorAll('.admin-row').forEach(r => { if (r.dataset.campus) seen.add(r.dataset.campus) })
+      const sel      = document.getElementById('filter-campus')
+      const current  = sel.value
+      sel.innerHTML  = '<option value="">Filter by Campus</option>'
+      ;[...seen].sort().forEach(c => {
+        const o = document.createElement('option')
+        o.value = c; o.textContent = c
+        sel.appendChild(o)
       })
+      if ([...seen].includes(current)) sel.value = current
+    }
+
+    function applyFilters() {
+      const campus = document.getElementById('filter-campus').value
+      const year   = document.getElementById('filter-year').value
+      const panel  = document.getElementById('panel-' + activeTab)
+      panel.querySelectorAll('.admin-row').forEach(row => {
+        const cm = !campus || row.dataset.campus === campus
+        const ym = !year   || row.dataset.year   === year
+        row.style.display = (cm && ym) ? '' : 'none'
+      })
+    }
+
+    function updateCounts() {
+      document.getElementById('count-normal').textContent   = document.querySelectorAll('#panel-normal .admin-row').length
+      document.getElementById('count-archived').textContent = document.querySelectorAll('#panel-archived .admin-row').length
+      document.getElementById('count-deleted').textContent  = document.querySelectorAll('#panel-deleted .admin-row').length
+    }
+
+    function moveCard(id, destPanelId) {
+      const card = document.getElementById('row-' + id)
+      if (!card) return
+      const srcPanel = card.closest('.tab-panel')
+      card.style.display = ''
+      card.remove()
+      if (srcPanel && srcPanel.querySelectorAll('.admin-row').length === 0) {
+        const msg = document.createElement('p')
+        msg.className = 'empty-state'; msg.style.padding = '16px 0'; msg.textContent = 'No submissions.'
+        srcPanel.appendChild(msg)
+      }
+      const dest = document.getElementById(destPanelId)
+      if (!dest) { location.reload(); return }
+      const empty = dest.querySelector('.empty-state')
+      if (empty) empty.remove()
+      dest.prepend(card)
+      updateCounts()
+      rebuildCampusDropdown()
     }
 
     function showFlagForm(type, id) {
@@ -2381,21 +2454,10 @@ function renderAdminDashboard(normal, archived, deleted, total) {
       if (await api(ep + '/' + id)) location.reload()
     }
 
-    async function doArchive(id)   { if (await api('archive/'   + id)) moveCard(id, 'archived-submissions') }
-    async function doUnarchive(id) { if (await api('unarchive/' + id)) moveCard(id, 'all-submissions') }
-    async function doDelete(id)    { if (!confirm('Move to Deleted?')) return; if (await api('delete/' + id)) moveCard(id, 'deleted-submissions') }
-    async function doRestore(id)   { if (await api('restore/'   + id)) moveCard(id, 'all-submissions') }
-
-    function moveCard(id, destId) {
-      const card = document.getElementById('row-' + id)
-      if (!card) return
-      card.remove()
-      const dest = document.getElementById(destId)
-      if (!dest) { location.reload(); return }
-      const empty = dest.querySelector('.empty-state')
-      if (empty) empty.remove()
-      dest.prepend(card)
-    }
+    async function doArchive(id)   { if (await api('archive/'   + id)) moveCard(id, 'panel-archived') }
+    async function doUnarchive(id) { if (await api('unarchive/' + id)) moveCard(id, 'panel-normal') }
+    async function doDelete(id)    { if (!confirm('Move to Deleted?')) return; if (await api('delete/' + id)) moveCard(id, 'panel-deleted') }
+    async function doRestore(id)   { if (await api('restore/'   + id)) moveCard(id, 'panel-normal') }
 
     async function api(endpoint, body) {
       const opts = { method: 'POST', headers: { 'Content-Type': 'application/json' } }
@@ -2404,6 +2466,8 @@ function renderAdminDashboard(normal, archived, deleted, total) {
       if (!r.ok) { alert('Error: ' + (await r.text())); return false }
       return true
     }
+
+    rebuildCampusDropdown()
   </script>
 </body>
 </html>`

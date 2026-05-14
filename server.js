@@ -955,25 +955,25 @@ function renderSubmitFlow(campus, allCampuses = []) {
       <h3 class="field-label" style="margin-top:1.75rem">Which best describes how you handle stress? <span class="field-hint">(optional)</span></h3>
       <p class="step-sub">Pick the one that feels most like you — or skip it.</p>
       <div class="bubble-grid" id="archetype-select" style="grid-template-columns:1fr 1fr">
-        <button class="bubble archetype-bubble" data-value="guardian" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:16px 12px;height:auto;min-height:110px;text-align:center">
-          <span style="font-size:28px;line-height:1">🏔️</span>
-          <span style="font-weight:600;font-size:15px;color:#1a1a2e;line-height:1.2">Architect</span>
-          <span style="font-size:13px;color:#666666;line-height:1.4;white-space:normal">I plan ahead and prepare before problems arise</span>
+        <button class="bubble archetype-bubble" data-value="guardian" style="display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:12px 14px;height:auto;text-align:left">
+          <span style="font-size:20px">🏔️</span>
+          <span style="font-weight:700;font-size:13px">Architect</span>
+          <span style="font-size:11px;color:#888;white-space:normal;line-height:1.4">I plan ahead and prepare before problems arise</span>
         </button>
-        <button class="bubble archetype-bubble" data-value="warrior" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:16px 12px;height:auto;min-height:110px;text-align:center">
-          <span style="font-size:28px;line-height:1">⚡</span>
-          <span style="font-weight:600;font-size:15px;color:#1a1a2e;line-height:1.2">Warrior</span>
-          <span style="font-size:13px;color:#666666;line-height:1.4;white-space:normal">I rise to the challenge when pressure is on</span>
+        <button class="bubble archetype-bubble" data-value="warrior" style="display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:12px 14px;height:auto;text-align:left">
+          <span style="font-size:20px">⚡</span>
+          <span style="font-weight:700;font-size:13px">Warrior</span>
+          <span style="font-size:11px;color:#888;white-space:normal;line-height:1.4">I rise to the challenge when pressure is on</span>
         </button>
-        <button class="bubble archetype-bubble" data-value="healer" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:16px 12px;height:auto;min-height:110px;text-align:center">
-          <span style="font-size:28px;line-height:1">💦</span>
-          <span style="font-weight:600;font-size:15px;color:#1a1a2e;line-height:1.2">Healer</span>
-          <span style="font-size:13px;color:#666666;line-height:1.4;white-space:normal">I recover and come back stronger after setbacks</span>
+        <button class="bubble archetype-bubble" data-value="healer" style="display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:12px 14px;height:auto;text-align:left">
+          <span style="font-size:20px">💦</span>
+          <span style="font-weight:700;font-size:13px">Healer</span>
+          <span style="font-size:11px;color:#888;white-space:normal;line-height:1.4">I recover and come back stronger after setbacks</span>
         </button>
-        <button class="bubble archetype-bubble" data-value="guide" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:16px 12px;height:auto;min-height:110px;text-align:center">
-          <span style="font-size:28px;line-height:1">🍃</span>
-          <span style="font-weight:600;font-size:15px;color:#1a1a2e;line-height:1.2">Guide</span>
-          <span style="font-size:13px;color:#666666;line-height:1.4;white-space:normal">I spot patterns and anticipate what's coming</span>
+        <button class="bubble archetype-bubble" data-value="guide" style="display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:12px 14px;height:auto;text-align:left">
+          <span style="font-size:20px">🍃</span>
+          <span style="font-weight:700;font-size:13px">Guide</span>
+          <span style="font-size:11px;color:#888;white-space:normal;line-height:1.4">I spot patterns and anticipate what's coming</span>
         </button>
       </div>
 

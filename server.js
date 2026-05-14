@@ -143,7 +143,7 @@ app.get('/api/campus-ratings', async (req, res) => {
 
 // ── Campus radar API (year-filtered, dual-layer) ────────────
 app.get('/api/campus-radar', async (req, res) => {
-  const { campus_id, campus_slug, campus_name, year } = req.query
+  const { campus_id, campus_slug, campus_name, campus_city, year } = req.query
   if (!campus_id) return res.status(400).json({ error: 'campus_id required' })
   const DIMS = ['physical','emotional','intellectual','social','spiritual','environmental','occupational','financial']
 
@@ -173,10 +173,11 @@ app.get('/api/campus-radar', async (req, res) => {
     try {
       let q2 = supabaseCM.from('assessments')
         .select('q1,q2,q3,q4,q5,q6,q7,q8,year_in_school')
-      // OR match: slug format OR full name format (values quoted for special chars)
+      // OR match: slug | full name | "Name — City" (CampusMind format)
       const orParts = []
       if (campus_slug) orParts.push(`college.eq."${campus_slug}"`)
       if (campus_name) orParts.push(`college.eq."${campus_name}"`)
+      if (campus_name && campus_city) orParts.push(`college.eq."${campus_name} \u2014 ${campus_city}"`)
       q2 = q2.or(orParts.join(','))
       if (year) q2 = q2.eq('year_in_school', year)
       const { data: cmRows, error: cmErr } = await q2
@@ -313,7 +314,9 @@ app.get('/campus/:slug', async (req, res) => {
   let wellbeingAvgs = null, wellbeingCount = 0
   if (supabaseCM) {
     try {
-      const orFilter = [`college.eq."${campus.slug}"`, `college.eq."${campus.name}"`].join(',')
+      const orParts = [`college.eq."${campus.slug}"`, `college.eq."${campus.name}"`]
+      if (campus.city) orParts.push(`college.eq."${campus.name} \u2014 ${campus.city}"`)
+      const orFilter = orParts.join(',')
       const { data: cmRows, error: cmErr } = await supabaseCM
         .from('assessments')
         .select('q1,q2,q3,q4,q5,q6,q7,q8')
@@ -1885,6 +1888,7 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
     // ── Radar chart ────────────────────────────────────────
     const _campusSlug    = ${JSON.stringify(campus.slug)}
     const _campusName    = ${JSON.stringify(campus.name)}
+    const _campusCity    = ${JSON.stringify(campus.city || '')}
     let   _radarPlanning = ${JSON.stringify(totalRatingsCount >= 1 ? { ...ratingAvgs, count: totalRatingsCount } : null)}
     let   _radarSocial   = ${JSON.stringify(wellbeingCount >= 1 ? { ...wellbeingAvgs, count: wellbeingCount } : null)}
     let   _radarMode     = 'both'
@@ -1961,6 +1965,7 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
           const url = '/api/campus-radar?campus_id=' + encodeURIComponent(_campusId) +
             '&campus_slug=' + encodeURIComponent(_campusSlug) +
             '&campus_name=' + encodeURIComponent(_campusName) +
+            '&campus_city=' + encodeURIComponent(_campusCity) +
             (_radarYear ? '&year=' + encodeURIComponent(_radarYear) : '')
           const resp = await fetch(url)
           const d    = await resp.json()

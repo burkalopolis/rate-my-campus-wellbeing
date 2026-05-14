@@ -105,6 +105,27 @@ app.get('/submit', async (req, res) => {
   res.send(renderSubmitFlow(campus, allCampuses))
 })
 
+// ── Campus ratings API (year-filtered) ──────────────────────
+app.get('/api/campus-ratings', async (req, res) => {
+  const { campus_id, year } = req.query
+  if (!campus_id) return res.status(400).json({ error: 'campus_id required' })
+  const DIMS = ['physical','emotional','intellectual','social','spiritual','environmental','occupational','financial']
+  let q = supabaseAdmin
+    .from('submissions')
+    .select('rating_physical,rating_emotional,rating_intellectual,rating_social,rating_spiritual,rating_environmental,rating_occupational,rating_financial')
+    .eq('campus_id', campus_id)
+    .neq('deleted', true)
+  if (year) q = q.eq('year_in_school', year)
+  const { data, error } = await q
+  if (error) return res.status(500).json({ error: error.message })
+  const avgs = {}
+  for (const dim of DIMS) {
+    const vals = (data || []).map(r => r[`rating_${dim}`]).filter(v => v !== null && v !== undefined)
+    avgs[dim] = vals.length > 0 ? Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 10) / 10 : null
+  }
+  res.json({ avgs, count: (data || []).length })
+})
+
 // ── Campus public page ──────────────────────────────────────
 app.get('/campus/:slug', async (req, res) => {
   const { slug } = req.params
@@ -135,12 +156,13 @@ app.get('/campus/:slug', async (req, res) => {
     .eq('campus_id', campus.id)
     .order('submission_count', { ascending: false })
 
-  // Get submissions feed (no approved filter — column does not exist)
-  const { data: submissions } = await supabase
+  // Get ALL submissions for voice cards (feedback_text OR guidance_text)
+  const { data: allSubmissions } = await supabaseAdmin
     .from('submissions')
     .select(`
       id,
       feedback_text,
+      guidance_text,
       dimension_tag,
       archetype_derived,
       subject_tag,
@@ -154,25 +176,30 @@ app.get('/campus/:slug', async (req, res) => {
     `)
     .eq('campus_id', campus.id)
     .neq('deleted', true)
-    .not('feedback_text', 'is', null)
     .order('created_at', { ascending: false })
-    .limit(20)
+
+  // Voice-eligible: has feedback_text OR guidance_text
+  const voiceSubmissions = (allSubmissions || []).filter(s =>
+    (s.feedback_text && s.feedback_text.trim()) ||
+    (s.guidance_text  && s.guidance_text.trim())
+  )
+  console.log(`[campus] slug=${slug} campus_id=${campus.id} total=${allSubmissions?.length ?? 0} voice-eligible=${voiceSubmissions.length}`)
 
   // Total submission count
-  const { count } = await supabase
+  const { count } = await supabaseAdmin
     .from('submissions')
     .select('id', { count: 'exact', head: true })
     .eq('campus_id', campus.id)
     .neq('deleted', true)
 
-  // Fetch all rating values to compute averages
+  // Fetch rating values + year for averages and year distribution
   const { data: ratingRows, error: ratingErr } = await supabaseAdmin
     .from('submissions')
-    .select('rating_physical,rating_emotional,rating_intellectual,rating_social,rating_spiritual,rating_environmental,rating_occupational,rating_financial')
+    .select('year_in_school,rating_physical,rating_emotional,rating_intellectual,rating_social,rating_spiritual,rating_environmental,rating_occupational,rating_financial')
     .eq('campus_id', campus.id)
     .neq('deleted', true)
 
-  console.log(`[campus] slug=${slug} campus_id=${campus.id} ratingRows=${ratingRows?.length ?? 0} ratingErr=${ratingErr?.message ?? 'none'}`)
+  if (ratingErr) console.error(`[campus] ratingErr=${ratingErr.message}`)
 
   // Compute per-dimension averages (exclude nulls)
   const RATING_DIMS = ['physical','emotional','intellectual','social','spiritual','environmental','occupational','financial']
@@ -187,14 +214,20 @@ app.get('/campus/:slug', async (req, res) => {
     }
   }
 
+  // Year distribution — only years that have at least 1 row
+  const ALL_YEARS = ['1st','2nd','3rd','4th','5th+','grad','alumni','dropout']
+  const yearDist = ALL_YEARS.filter(y => (ratingRows || []).some(r => r.year_in_school === y))
+
   res.send(renderCampusPage(
     campus,
     archetypeScores || [],
     dimensionScores || [],
-    submissions || [],
+    voiceSubmissions,
     count || 0,
     ratingAvgs,
-    totalRatingsCount
+    totalRatingsCount,
+    yearDist,
+    campus.id
   ))
 })
 
@@ -1374,7 +1407,7 @@ function renderReceipt(campusName, campusId, campusSlug, submitterId, dimension,
 </html>`
 }
 
-function renderCampusPage(campus, archetypeScores, dimensionScores, submissions, count, ratingAvgs = {}, totalRatingsCount = 0) {
+function renderCampusPage(campus, archetypeScores, dimensionScores, submissions, count, ratingAvgs = {}, totalRatingsCount = 0, yearDist = [], campusId = '') {
   const dominant = archetypeScores.find(a => a.is_dominant)
 
   const archLabels = {
@@ -1469,22 +1502,27 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
   const feedItems = submissions.map(s => {
     const communityTags = s.submitters?.community_tags || []
     const subjectLabel = s.subject_tag ? s.subject_tag.replace(/-/g,' ') : ''
+    const bodyText = escapeHtml((s.feedback_text || s.guidance_text || '').trim())
     return [
-      '<div class="feed-entry" data-dim="' + (s.dimension_tag||'') + '" data-community="' + communityTags.join(',') + '">',
+      '<div class="feed-entry" data-dim="' + (s.dimension_tag||'') + '" data-subject="' + escapeHtml(s.subject_tag||'') + '">',
       '<div class="feed-meta">',
       s.year_in_school ? '<span class="meta-pill">' + s.year_in_school + ' year</span>' : '',
       s.major ? '<span class="meta-pill">' + escapeHtml(s.major) + '</span>' : '',
       communityTags.length ? '<span class="meta-pill">' + communityTags.join(', ') + '</span>' : '',
       '</div>',
-      s.image_url ? '<img src="' + escapeHtml(s.image_url) + '" class="feed-image-thumb" alt="Student photo" loading="lazy">' : '',
-      '<p class="feed-text">' + escapeHtml(s.feedback_text) + '</p>',
+      '<p class="feed-text">' + bodyText + '</p>',
       '<div class="feed-tags">',
       subjectLabel ? '<span class="feed-tag subject-tag">' + escapeHtml(subjectLabel) + '</span>' : '',
       s.dimension_tag ? '<span class="feed-tag dim-tag-' + s.dimension_tag + '">' + (dimLabels[s.dimension_tag] || s.dimension_tag) + '</span>' : '',
-      s.archetype_derived && archLabels[s.archetype_derived] ? '<span class="feed-tag arch-tag">' + archLabels[s.archetype_derived].emoji + ' ' + archLabels[s.archetype_derived].name + '</span>' : '',
       '</div></div>'
     ].join('')
   }).join('')
+
+  const yearPills = yearDist.length > 0 ? `
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px">
+      <button class="year-pill active" data-year="">All</button>
+      ${yearDist.map(y => `<button class="year-pill" data-year="${y}">${y} year</button>`).join('')}
+    </div>` : ''
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -1496,6 +1534,10 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
     ${campus.name}. See how students rate mental health, social connection,
     academic pressure, and more.">
   <link rel="stylesheet" href="/style.css">
+  <style>
+    .year-pill{padding:6px 14px;border-radius:20px;border:1.5px solid #ccc;background:#fff;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s}
+    .year-pill.active{background:#3a86ff;border-color:#3a86ff;color:#fff}
+  </style>
 </head>
 <body>
   <div class="page-campus">
@@ -1530,8 +1572,11 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
       ${hasRatings ? `
       <div class="scores-panel" style="margin-bottom:24px">
         <p class="panel-label">Campus Support Ratings</p>
-        ${ratingBars}
-        <p style="font-size:12px;color:#888;margin:10px 0 2px">Based on ${totalRatingsCount} rating${totalRatingsCount === 1 ? '' : 's'}</p>
+        ${yearPills}
+        <div id="ratings-chart">
+          ${ratingBars}
+        </div>
+        <p id="ratings-count" style="font-size:12px;color:#888;margin:10px 0 2px">Based on ${totalRatingsCount} rating${totalRatingsCount === 1 ? '' : 's'}</p>
         <p style="font-size:11px;color:#aaa;margin:0">Source: Rate My Campus Wellbeing</p>
       </div>` : ''}
 
@@ -1539,19 +1584,20 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
         <div class="feed-header">
           <p class="panel-label">Student voices</p>
           <div class="community-filter-wrap">
-            <button class="chip active" id="filter-all">All</button>
-            <button class="chip" id="filter-clear">Clear</button>
-            <select id="community-filter-select">
-              <option value="">+ Filter by community</option>
-              ${[...new Set(submissions.flatMap(s => s.submitters?.community_tags || []))].sort().map(t =>
-                `<option value="${t}">${t}</option>`
-              ).join('')}
+            <select id="subject-filter-select">
+              <option value="">+ Filter by subject</option>
+              <option value="campus-overall">Campus Overall</option>
+              <option value="department-major">Department/Major</option>
+              <option value="facility">Facility</option>
+              <option value="program">Program</option>
+              <option value="resource">Resource</option>
+              <option value="transition-experience">Transition Experience</option>
             </select>
-            <div class="active-filter-chips" id="active-chips"></div>
+            <button class="chip" id="filter-clear-subject" style="display:none">Clear filter</button>
           </div>
         </div>
         <div id="feed">
-          ${feedItems || '<p class="empty-feed">No approved reviews yet.</p>'}
+          ${feedItems || '<p class="empty-feed">No student voices yet.</p>'}
         </div>
       </div>
       `}
@@ -1563,61 +1609,87 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
         </a>
       </div>
     </main>
+
+    <footer class="receipt-footer">
+      <p>© 2026 Rate My Campus Wellbeing · A CampusMind Product</p>
+    </footer>
   </div>
 
   <script>
-    const activeFilters = new Set()
+    const _campusId  = ${JSON.stringify(campusId)}
+    const _dimColors = ${JSON.stringify({
+      physical:'#D4897A', emotional:'#E8B484', intellectual:'#E8D98A',
+      social:'#94C48A', spiritual:'#90C8D8', environmental:'#8A9AC4',
+      occupational:'#A886B8', financial:'#D4A0B8'
+    })}
+    const _dimLabels = ${JSON.stringify({
+      physical:'Physical / Fitness', emotional:'Emotional / Mental',
+      intellectual:'Academic / Intellectual', social:'Social Connection',
+      spiritual:'Spiritual / Direction', environmental:'Environment / Safety',
+      occupational:'Career / Occupational', financial:'Financial'
+    })}
+    const _dimOrder  = ['physical','emotional','intellectual','social','spiritual','environmental','occupational','financial']
 
-    function applyFilters() {
-      const entries = document.querySelectorAll('.feed-entry')
-      entries.forEach(entry => {
-        if (activeFilters.size === 0) { entry.style.display = ''; return }
-        const community = (entry.dataset.community || '').split(',').map(t => t.trim())
-        entry.style.display = [...activeFilters].some(f => community.includes(f)) ? '' : 'none'
+    // ── Year filter ────────────────────────────────────────
+    document.querySelectorAll('.year-pill').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        document.querySelectorAll('.year-pill').forEach(b => b.classList.remove('active'))
+        btn.classList.add('active')
+        const year = btn.dataset.year
+        try {
+          const url = '/api/campus-ratings?campus_id=' + encodeURIComponent(_campusId) + (year ? '&year=' + encodeURIComponent(year) : '')
+          const r = await fetch(url)
+          const d = await r.json()
+          renderChart(d.avgs, d.count)
+        } catch(e) { console.error('Year filter error', e) }
       })
-      document.getElementById('filter-all').classList.toggle('active', activeFilters.size === 0)
+    })
+
+    function renderChart(avgs, count) {
+      const chart = document.getElementById('ratings-chart')
+      if (!chart) return
+      chart.innerHTML = _dimOrder.map(dim => {
+        const avg = avgs[dim]
+        const pct = avg !== null && avg !== undefined ? (avg / 10 * 100) : 0
+        return '<div style="margin-bottom:10px">' +
+          '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">' +
+            '<span style="font-size:13px;font-weight:600;color:#333">' + _dimLabels[dim] + '</span>' +
+            '<span style="font-size:13px;font-weight:700;color:#333">' + (avg !== null && avg !== undefined ? Number(avg).toFixed(1) : 'N/A') + '</span>' +
+          '</div>' +
+          '<div style="background:#eee;border-radius:6px;height:10px;overflow:hidden">' +
+            '<div style="width:' + pct + '%;height:100%;background:' + _dimColors[dim] + ';border-radius:6px;transition:width .4s"></div>' +
+          '</div></div>'
+      }).join('')
+      const countEl = document.getElementById('ratings-count')
+      if (countEl) countEl.textContent = 'Based on ' + count + ' rating' + (count === 1 ? '' : 's')
     }
 
-    function addChip(tag) {
-      if (activeFilters.has(tag)) return
-      activeFilters.add(tag)
-      const chip = document.createElement('button')
-      chip.className = 'chip active-chip'
-      chip.innerHTML = tag + ' <span class="chip-remove">✕</span>'
-      chip.addEventListener('click', () => {
-        activeFilters.delete(tag)
-        chip.remove()
-        applyFilters()
-        document.getElementById('community-filter-select').value = ''
+    // ── Subject filter ─────────────────────────────────────
+    let _activeSubject = ''
+
+    function applySubjectFilter() {
+      document.querySelectorAll('.feed-entry').forEach(entry => {
+        if (!_activeSubject) { entry.style.display = ''; return }
+        entry.style.display = (entry.dataset.subject || '') === _activeSubject ? '' : 'none'
       })
-      document.getElementById('active-chips').appendChild(chip)
-      applyFilters()
+      const clearBtn = document.getElementById('filter-clear-subject')
+      if (clearBtn) clearBtn.style.display = _activeSubject ? '' : 'none'
     }
 
-    const filterAll = document.getElementById('filter-all')
-    if (filterAll) {
-      filterAll.addEventListener('click', () => {
-        activeFilters.clear()
-        document.getElementById('active-chips').innerHTML = ''
-        document.getElementById('community-filter-select').value = ''
-        applyFilters()
+    const subjectSel = document.getElementById('subject-filter-select')
+    if (subjectSel) {
+      subjectSel.addEventListener('change', e => {
+        _activeSubject = e.target.value
+        applySubjectFilter()
       })
     }
 
-    const filterClear = document.getElementById('filter-clear')
-    if (filterClear) {
-      filterClear.addEventListener('click', () => {
-        activeFilters.clear()
-        document.getElementById('active-chips').innerHTML = ''
-        document.getElementById('community-filter-select').value = ''
-        applyFilters()
-      })
-    }
-
-    const communityFilter = document.getElementById('community-filter-select')
-    if (communityFilter) {
-      communityFilter.addEventListener('change', e => {
-        if (e.target.value) { addChip(e.target.value); e.target.value = '' }
+    const clearSubject = document.getElementById('filter-clear-subject')
+    if (clearSubject) {
+      clearSubject.addEventListener('click', () => {
+        _activeSubject = ''
+        if (subjectSel) subjectSel.value = ''
+        applySubjectFilter()
       })
     }
   </script>

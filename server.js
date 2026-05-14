@@ -26,6 +26,21 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_KEY
 )
 
+// CampusMind client — second Supabase project for student wellbeing assessments
+let supabaseCM = null
+try {
+  const cmUrl = process.env.CAMPUSMIND_SUPABASE_URL
+  const cmKey = process.env.CAMPUSMIND_SUPABASE_KEY
+  if (cmUrl && cmKey && cmUrl.startsWith('https://')) {
+    supabaseCM = createClient(cmUrl, cmKey)
+    console.log('[CampusMind] Supabase client initialised')
+  } else {
+    console.warn('[CampusMind] Skipping client — CAMPUSMIND_SUPABASE_URL missing or malformed')
+  }
+} catch(e) {
+  console.warn('[CampusMind] Client init failed:', e.message)
+}
+
 // ── Express setup ───────────────────────────────────────────
 const app = express()
 app.set("trust proxy", 1)
@@ -128,45 +143,61 @@ app.get('/api/campus-ratings', async (req, res) => {
 
 // ── Campus radar API (year-filtered, dual-layer) ────────────
 app.get('/api/campus-radar', async (req, res) => {
-  const { campus_id, campus_slug, year } = req.query
+  const { campus_id, campus_slug, campus_name, year } = req.query
   if (!campus_id) return res.status(400).json({ error: 'campus_id required' })
   const DIMS = ['physical','emotional','intellectual','social','spiritual','environmental','occupational','financial']
 
-  // Layer 1: RMCW ratings
+  // ── Layer 1: Planning Capacity — RMCW submissions ──────────
   let q1 = supabaseAdmin.from('submissions')
     .select('rating_physical,rating_emotional,rating_intellectual,rating_social,rating_spiritual,rating_environmental,rating_occupational,rating_financial')
-    .eq('campus_id', campus_id).neq('deleted', true)
+    .eq('campus_id', campus_id)
+    .neq('deleted', true)
   if (year) q1 = q1.eq('year_in_school', year)
   const { data: rmcwRows, error: rmcwErr } = await q1
   if (rmcwErr) return res.status(500).json({ error: rmcwErr.message })
-  const rmcwAvgs = {}
+
+  const planningAvgs = {}
   for (const dim of DIMS) {
     const vals = (rmcwRows || []).map(r => r[`rating_${dim}`]).filter(v => v != null)
-    rmcwAvgs[dim] = vals.length > 0 ? Math.round(vals.reduce((a,b)=>a+b,0)/vals.length*10)/10 : null
+    planningAvgs[dim] = vals.length > 0 ? Math.round(vals.reduce((a,b)=>a+b,0)/vals.length*10)/10 : null
   }
+  const planningCount = (rmcwRows || []).length
+  const planning = planningCount >= 3
+    ? { ...planningAvgs, count: planningCount }
+    : null
 
-  // Layer 2: CampusMind assessments (table may not exist yet)
-  let wellbeing = null
-  if (campus_slug) {
-    let q2 = supabaseAdmin.from('assessments')
-      .select('score_physical,score_emotional,score_intellectual,score_social,score_spiritual,score_environmental,score_occupational,score_financial')
-      .eq('campus_slug', campus_slug)
-    if (year) q2 = q2.eq('year_in_school', year)
-    const { data: wRows, error: wErr } = await q2
-    if (!wErr && wRows && wRows.length > 0) {
-      const wAvgs = {}
-      for (const dim of DIMS) {
-        const vals = wRows.map(r => r[`score_${dim}`]).filter(v => v != null)
-        wAvgs[dim] = vals.length > 0 ? Math.round(vals.reduce((a,b)=>a+b,0)/vals.length*10)/10 : null
+  // ── Layer 2: Social Capacity — CampusMind assessments ──────
+  // q1–q8 map to Physical–Financial; college field is slug OR full name
+  let social = null
+  if (supabaseCM && (campus_slug || campus_name)) {
+    try {
+      let q2 = supabaseCM.from('assessments')
+        .select('q1,q2,q3,q4,q5,q6,q7,q8,year_in_school')
+      // OR match: slug format OR full name format
+      const orFilter = [
+        campus_slug ? `college.eq.${campus_slug}` : null,
+        campus_name ? `college.eq.${campus_name}` : null
+      ].filter(Boolean).join(',')
+      q2 = q2.or(orFilter)
+      if (year) q2 = q2.eq('year_in_school', year)
+      const { data: cmRows, error: cmErr } = await q2
+      if (!cmErr && cmRows && cmRows.length >= 3) {
+        const qMap = ['q1','q2','q3','q4','q5','q6','q7','q8']
+        const socialAvgs = {}
+        DIMS.forEach((dim, i) => {
+          const vals = cmRows.map(r => r[qMap[i]]).filter(v => v != null)
+          socialAvgs[dim] = vals.length > 0 ? Math.round(vals.reduce((a,b)=>a+b,0)/vals.length*10)/10 : null
+        })
+        social = { ...socialAvgs, count: cmRows.length }
+      } else if (cmErr) {
+        console.error('[radar] CampusMind query error:', cmErr.message)
       }
-      wellbeing = { avgs: wAvgs, count: wRows.length }
+    } catch(e) {
+      console.error('[radar] CampusMind fetch failed:', e.message)
     }
   }
 
-  res.json({
-    rmcw:      { avgs: rmcwAvgs, count: (rmcwRows || []).length },
-    wellbeing: wellbeing
-  })
+  res.json({ planning, social })
 })
 
 // ── Campus public page ──────────────────────────────────────
@@ -279,18 +310,28 @@ app.get('/campus/:slug', async (req, res) => {
       : null
   }
 
-  // Query CampusMind assessments for wellbeing radar layer (table may not exist yet)
+  // Query CampusMind assessments for social capacity radar layer
   let wellbeingAvgs = null, wellbeingCount = 0
-  const { data: wRows, error: wErr } = await supabaseAdmin
-    .from('assessments')
-    .select('score_physical,score_emotional,score_intellectual,score_social,score_spiritual,score_environmental,score_occupational,score_financial')
-    .eq('campus_slug', campus.slug)
-  if (!wErr && wRows && wRows.length > 0) {
-    wellbeingAvgs = {}
-    wellbeingCount = wRows.length
-    for (const dim of RATING_DIMS) {
-      const vals = wRows.map(r => r[`score_${dim}`]).filter(v => v != null)
-      wellbeingAvgs[dim] = vals.length > 0 ? Math.round(vals.reduce((a,b)=>a+b,0)/vals.length*10)/10 : null
+  if (supabaseCM) {
+    try {
+      const orFilter = [`college.eq.${campus.slug}`, `college.eq.${campus.name}`].join(',')
+      const { data: cmRows, error: cmErr } = await supabaseCM
+        .from('assessments')
+        .select('q1,q2,q3,q4,q5,q6,q7,q8')
+        .or(orFilter)
+      if (!cmErr && cmRows && cmRows.length >= 3) {
+        wellbeingCount = cmRows.length
+        wellbeingAvgs = {}
+        const qMap = ['q1','q2','q3','q4','q5','q6','q7','q8']
+        RATING_DIMS.forEach((dim, i) => {
+          const vals = cmRows.map(r => r[qMap[i]]).filter(v => v != null)
+          wellbeingAvgs[dim] = vals.length > 0 ? Math.round(vals.reduce((a,b)=>a+b,0)/vals.length*10)/10 : null
+        })
+      } else if (cmErr) {
+        console.error('[campus] CampusMind query error:', cmErr.message)
+      }
+    } catch(e) {
+      console.error('[campus] CampusMind fetch failed:', e.message)
     }
   }
 
@@ -1835,8 +1876,9 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
 
     // ── Radar chart ────────────────────────────────────────
     const _campusSlug    = ${JSON.stringify(campus.slug)}
-    let   _radarRmcw     = ${JSON.stringify(totalRatingsCount >= 3 ? { avgs: ratingAvgs, count: totalRatingsCount } : null)}
-    let   _radarWellbeing= ${JSON.stringify(wellbeingCount >= 3 ? { avgs: wellbeingAvgs, count: wellbeingCount } : null)}
+    const _campusName    = ${JSON.stringify(campus.name)}
+    let   _radarPlanning = ${JSON.stringify(totalRatingsCount >= 3 ? { ...ratingAvgs, count: totalRatingsCount } : null)}
+    let   _radarSocial   = ${JSON.stringify(wellbeingCount >= 3 ? { ...wellbeingAvgs, count: wellbeingCount } : null)}
     let   _radarMode     = 'both'
     let   _radarYear     = ''
 
@@ -1887,8 +1929,8 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
     function updateRadar() {
       const container = document.getElementById('radar-svg-container')
       if (!container) return
-      const l1 = (_radarMode !== 'students' && _radarRmcw)      ? _radarRmcw.avgs      : null
-      const l2 = (_radarMode !== 'campus'   && _radarWellbeing) ? _radarWellbeing.avgs  : null
+      const l1 = (_radarMode !== 'students' && _radarPlanning) ? _radarPlanning : null
+      const l2 = (_radarMode !== 'campus'   && _radarSocial)   ? _radarSocial   : null
       container.innerHTML = buildRadarSVG(l1, l2, _radarMode)
     }
 
@@ -1910,11 +1952,12 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
         try {
           const url = '/api/campus-radar?campus_id=' + encodeURIComponent(_campusId) +
             '&campus_slug=' + encodeURIComponent(_campusSlug) +
+            '&campus_name=' + encodeURIComponent(_campusName) +
             (_radarYear ? '&year=' + encodeURIComponent(_radarYear) : '')
           const resp = await fetch(url)
           const d    = await resp.json()
-          _radarRmcw      = (d.rmcw      && d.rmcw.count >= 3)      ? d.rmcw      : null
-          _radarWellbeing = (d.wellbeing && d.wellbeing.count >= 3)  ? d.wellbeing : null
+          _radarPlanning = d.planning || null
+          _radarSocial   = d.social   || null
           updateRadar()
         } catch(err) { console.error('Radar year filter error', err) }
       })

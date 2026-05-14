@@ -175,8 +175,13 @@ app.get('/api/campus-ratings', async (req, res) => {
     avgs[dim] = vals.length > 0 ? Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 10) / 10 : null
   }
   const ratingCount = (data || []).filter(r => DIMS.some(d => r[`rating_${d}`] != null)).length
-  const archCount   = (archData || []).filter(s => s.submitters?.archetype_self != null).length
-  res.json({ avgs, count: ratingCount, archCount })
+  const archCounts = { guardian: 0, warrior: 0, guide: 0, healer: 0 }
+  for (const s of (archData || [])) {
+    const v = s.submitters?.archetype_self
+    if (v && v in archCounts) archCounts[v]++
+  }
+  const archCount = Object.values(archCounts).reduce((a, b) => a + b, 0)
+  res.json({ avgs, count: ratingCount, archCount, archCounts })
 })
 
 // ── Campus radar API (year-filtered, dual-layer) ────────────
@@ -1916,39 +1921,18 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
           '</div>'
 
         // ── Archetype lean section (right) ─────────────────────
-        const al = archetypeLean
-        const meta = {
-          guardian: { emoji: '🏔️', name: 'Architect', phase: 'Academic + Career',  color: '#C4856A' },
-          warrior:  { emoji: '⚡',  name: 'Warrior',   phase: 'Emotional + Social', color: '#4A5080' },
-          guide:    { emoji: '🍃',  name: 'Guide',     phase: 'Spiritual + Environment', color: '#C8B84A' },
-          healer:   { emoji: '💦',  name: 'Healer',    phase: 'Physical + Financial', color: '#7BA898' }
-        }
-        const leanCards = al ? ['guardian','warrior','guide','healer'].map(key => {
-          const m = meta[key]
-          const pct = al.pcts[key] || 0
-          const isDom = al.dominant === key
-          return '<div style="background:' + m.color + '1a;border:2px solid ' + (isDom ? m.color : '#e5e5e5') + ';border-radius:12px;padding:14px;position:relative">' +
-            (isDom ? '<span style="position:absolute;top:8px;right:8px;background:' + m.color + ';color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px">Leading</span>' : '') +
-            '<div style="font-size:24px;margin-bottom:3px">' + m.emoji + '</div>' +
-            '<div style="font-size:14px;font-weight:800;color:#1a1a2e">' + m.name + '</div>' +
-            '<div style="font-size:11px;color:#666;margin:2px 0 6px">' + m.phase + '</div>' +
-            '<div style="font-size:20px;font-weight:800;color:' + m.color + '">' + pct + '%</div>' +
-          '</div>'
-        }).join('') : ''
-
-        const leanText = al
-          ? (al.dominant
-              ? '<p style="font-size:12px;color:#555;margin:10px 0 0"><strong>' + campus.name + '</strong> leans <strong>' + meta[al.dominant].name + '</strong> based on <strong>' + al.total + '</strong> response' + (al.total === 1 ? '' : 's') + '.</p>'
-              : '<p style="font-size:12px;color:#888;margin:10px 0 0">Not enough responses yet to determine a campus lean.</p>')
-          : ''
-
-        const archTotal = al ? al.total : 0
         const leanPanel =
           '<div class="scores-panel" style="margin:0">' +
-            '<p class="panel-label">Campus Resilience Lean</p>' +
-            (al && al.total >= 3 ? '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' + leanCards + '</div>' : '') +
-            (al ? leanText : '') +
-            '<p id="archetype-count" style="font-size:12px;color:#aaa;margin:8px 0 0">Based on ' + archTotal + ' archetype response' + (archTotal !== 1 ? 's' : '') + '</p>' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px">' +
+              '<p class="panel-label" style="margin:0">Campus Resilience Lean</p>' +
+              '<div style="display:flex;gap:4px">' +
+                '<button class="lean-toggle active" data-mode="self" onclick="switchLeanMode(\'self\')" style="padding:5px 12px;border-radius:20px;border:1.5px solid #3a86ff;background:#3a86ff;color:#fff;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s">Self-Reported</button>' +
+                '<button class="lean-toggle" data-mode="derived" onclick="switchLeanMode(\'derived\')" style="padding:5px 12px;border-radius:20px;border:1.5px solid #ccc;background:#fff;color:#666;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s">Rating-Derived</button>' +
+              '</div>' +
+            '</div>' +
+            '<div id="lean-grid"></div>' +
+            '<p id="lean-interpretation" style="font-size:12px;color:#555;margin:10px 0 4px"></p>' +
+            '<p id="archetype-count" style="font-size:12px;color:#aaa;margin:4px 0 0"></p>' +
           '</div>'
 
         return '<div id="insights-row">' + radarPanel + leanPanel + '</div>'
@@ -2022,8 +2006,15 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
           const r = await fetch(url)
           const d = await r.json()
           renderChart(d.avgs, d.count)
-          const archEl = document.getElementById('archetype-count')
-          if (archEl) archEl.textContent = 'Based on ' + (d.archCount || 0) + ' archetype response' + ((d.archCount || 0) !== 1 ? 's' : '')
+          _leanRatCount = d.count
+          if (d.archCounts) {
+            const at = Object.values(d.archCounts).reduce((a,b)=>a+b,0)
+            const ap = {}
+            for (const [k,v] of Object.entries(d.archCounts)) ap[k] = at > 0 ? Math.round(v/at*100) : 0
+            _leanSelf = { counts: d.archCounts, total: at, pcts: ap, dominant: at >= 3 ? Object.entries(d.archCounts).reduce((a,b)=>b[1]>a[1]?b:a)[0] : null }
+          }
+          _leanDerived = computeRatingDerived(d.avgs)
+          renderLeanGrid(_leanMode)
         } catch(e) { console.error('Year filter error', e) }
       })
     })
@@ -2055,6 +2046,11 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
     let   _radarSocial   = ${JSON.stringify(wellbeingCount >= 1 ? { ...wellbeingAvgs, count: wellbeingCount } : null)}
     let   _radarMode     = 'both'
     let   _radarYear     = ''
+    // ── Lean data ───────────────────────────────────────────
+    let _leanSelf    = ${JSON.stringify(archetypeLean)}
+    let _leanDerived = null
+    let _leanMode    = 'self'
+    let _leanRatCount = ${totalRatingsCount}
 
     function buildRadarSVG(l1, l2, mode) {
       const N = 8, W = 320, H = 320, cx = W/2, cy = H/2, R = 105, LR = 138
@@ -2140,6 +2136,103 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
 
     // Initial draw
     updateRadar()
+
+    // ── Lean grid ───────────────────────────────────────────
+    const _leanMeta = {
+      guardian: { emoji: '🏔️', name: 'Architect', phase: 'Academic + Career',       color: '#C4856A' },
+      warrior:  { emoji: '⚡',  name: 'Warrior',   phase: 'Emotional + Social',      color: '#4A5080' },
+      guide:    { emoji: '🍃',  name: 'Guide',     phase: 'Spiritual + Environment', color: '#C8B84A' },
+      healer:   { emoji: '💦',  name: 'Healer',    phase: 'Physical + Financial',    color: '#7BA898' }
+    }
+
+    function computeRatingDerived(avgs) {
+      if (!avgs) return null
+      function avg2(a, b) {
+        const vals = [avgs[a], avgs[b]].filter(v => v != null)
+        return vals.length ? vals.reduce((s, v) => s + v, 0) / vals.length : null
+      }
+      const scores = {
+        guardian: avg2('intellectual', 'occupational'),
+        warrior:  avg2('emotional',    'social'),
+        healer:   avg2('physical',     'financial'),
+        guide:    avg2('spiritual',    'environmental')
+      }
+      const total = Object.values(scores).filter(v => v != null).reduce((a, b) => a + b, 0)
+      if (total === 0) return null
+      const pcts = {}
+      for (const [k, v] of Object.entries(scores)) pcts[k] = v != null ? Math.round(v / total * 100) : 0
+      const dominant = Object.entries(pcts).reduce((a, b) => b[1] > a[1] ? b : a)[0]
+      return { scores, pcts, dominant }
+    }
+
+    function renderLeanGrid(mode) {
+      const gridEl   = document.getElementById('lean-grid')
+      const interpEl = document.getElementById('lean-interpretation')
+      const countEl  = document.getElementById('archetype-count')
+      if (!gridEl) return
+      const data = mode === 'self' ? _leanSelf : _leanDerived
+      if (mode === 'self') {
+        const n = data ? data.total : 0
+        if (!data || data.total < 3) {
+          gridEl.innerHTML = ''
+          if (interpEl) interpEl.textContent = ''
+          if (countEl) countEl.textContent = n > 0 ? 'Not enough responses yet to determine a campus lean.' : 'No self-reported archetype responses yet.'
+          return
+        }
+        if (countEl) countEl.textContent = 'Based on ' + n + ' archetype response' + (n !== 1 ? 's' : '')
+      } else {
+        if (!data) {
+          gridEl.innerHTML = ''
+          if (interpEl) interpEl.textContent = ''
+          if (countEl) countEl.textContent = 'Not enough rating data yet.'
+          return
+        }
+        if (countEl) countEl.textContent = 'Based on ' + _leanRatCount + ' rating' + (_leanRatCount !== 1 ? 's' : '')
+      }
+      const cards = ['guardian', 'warrior', 'guide', 'healer'].map(key => {
+        const m = _leanMeta[key], pct = data.pcts[key] || 0, isDom = data.dominant === key
+        return '<div style="background:' + m.color + '1a;border:2px solid ' + (isDom ? m.color : '#e5e5e5') + ';border-radius:12px;padding:14px;position:relative">' +
+          (isDom ? '<span style="position:absolute;top:8px;right:8px;background:' + m.color + ';color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px">Leading</span>' : '') +
+          '<div style="font-size:24px;margin-bottom:3px">' + m.emoji + '</div>' +
+          '<div style="font-size:14px;font-weight:800;color:#1a1a2e">' + m.name + '</div>' +
+          '<div style="font-size:11px;color:#666;margin:2px 0 6px">' + m.phase + '</div>' +
+          '<div style="font-size:20px;font-weight:800;color:' + m.color + '">' + pct + '%</div>' +
+          '</div>'
+      }).join('')
+      gridEl.innerHTML = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' + cards + '</div>'
+      const dom = data.dominant, cn = _campusName
+      const interps = {
+        self: {
+          guardian: cn + ' students see themselves as Architects — planners who prepare before problems arise.',
+          warrior:  cn + ' students see themselves as Warriors — activated by pressure and challenge.',
+          healer:   cn + ' students see themselves as Healers — focused on recovery and coming back stronger.',
+          guide:    cn + ' students see themselves as Guides — pattern-seekers who anticipate what comes next.'
+        },
+        derived: {
+          guardian: cn + ' ratings suggest an Architect campus — strong in academic and career support.',
+          warrior:  cn + ' ratings suggest a Warrior campus — strongest in emotional and social support.',
+          healer:   cn + ' ratings suggest a Healer campus — strongest in physical and financial support.',
+          guide:    cn + ' ratings suggest a Guide campus — strongest in spiritual and environmental support.'
+        }
+      }
+      if (interpEl) interpEl.textContent = dom ? (interps[mode]?.[dom] || '') : ''
+    }
+
+    function switchLeanMode(mode) {
+      _leanMode = mode
+      document.querySelectorAll('.lean-toggle').forEach(btn => {
+        const on = btn.dataset.mode === mode
+        btn.classList.toggle('active', on)
+        btn.style.background  = on ? '#3a86ff' : '#fff'
+        btn.style.color       = on ? '#fff'    : '#666'
+        btn.style.borderColor = on ? '#3a86ff' : '#ccc'
+      })
+      renderLeanGrid(mode)
+    }
+
+    // Initial lean draw
+    _leanDerived = computeRatingDerived(_radarPlanning)
+    renderLeanGrid('self')
 
     // ── Subject filter ─────────────────────────────────────
     let _activeSubject = ''

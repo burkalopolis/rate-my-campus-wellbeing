@@ -1,0 +1,17 @@
+Update the Campus Resilience Lean section on the College Showcase page with the following changes:
+1. RENAME: Update any display logic that references 'guardian' to show 'Architect' instead. The archetype_derived field in the database may contain the value 'guardian' — treat it as equivalent to 'architect' in all calculations and display.
+2. DUAL DATA SOURCE TOGGLE: Add two toggle buttons above the Campus Resilience Lean grid: 'Self-Reported' and 'Rating-Derived'. Default is 'Self-Reported'.
+Self-Reported mode: Calculate archetype percentages from archetype_self in the submitters table joined to submissions for this campus. Only count rows where archetype_self is not null. Show 'Based on [n] archetype responses' below the grid. If fewer than 3 non-null responses exist show 'Not enough responses yet to determine a campus lean.'
+Rating-Derived mode: Calculate archetype percentages by averaging the two dimension rating columns per archetype from the submissions table for this campus, excluding null values. Formula: Architect = avg(rating_intellectual, rating_occupational), Warrior = avg(rating_emotional, rating_social), Healer = avg(rating_physical, rating_financial), Guide = avg(rating_spiritual, rating_environmental). The leading archetype is the one with the highest average. Show percentages as each archetype score relative to the total of all four scores. Show 'Based on [n] ratings' below the grid. If fewer than 1 rating exists show the empty state.
+3. LEADING BADGE: In both modes, highlight the highest scoring archetype card with a 'Leading' badge and a colored border using the archetype brand color.
+4. INTERPRETATION LINE: Below the grid and count, show a one-line interpretation that changes based on mode and leading archetype:
+Self-Reported — Architect: '[Campus] students see themselves as Architects — planners who prepare before problems arise.'
+Self-Reported — Warrior: '[Campus] students see themselves as Warriors — activated by pressure and challenge.'
+Self-Reported — Healer: '[Campus] students see themselves as Healers — focused on recovery and coming back stronger.'
+Self-Reported — Guide: '[Campus] students see themselves as Guides — pattern-seekers who anticipate what comes next.'
+Rating-Derived — Architect: '[Campus] ratings suggest an Architect campus — strong in academic and career support.'
+Rating-Derived — Warrior: '[Campus] ratings suggest a Warrior campus — strongest in emotional and social support.'
+Rating-Derived — Healer: '[Campus] ratings suggest a Healer campus — strongest in physical and financial support.'
+Rating-Derived — Guide: '[Campus] ratings suggest a Guide campus — strongest in spiritual and environmental support.'
+5. YEAR FILTER: Both modes should respect the year dropdown filter already present on the page — recalculate when year changes.
+6. RESPONSE COUNT: Show count below grid in both modes as described above. Update count when year filter changes.

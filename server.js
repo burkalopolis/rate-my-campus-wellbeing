@@ -160,14 +160,23 @@ app.get('/api/campus-ratings', async (req, res) => {
     .eq('campus_id', campus_id)
     .neq('deleted', true)
   if (year) q = q.eq('year_in_school', year)
-  const { data, error } = await q
+  let aq = supabaseAdmin
+    .from('submissions')
+    .select('submitters(archetype_self)')
+    .eq('campus_id', campus_id)
+    .neq('deleted', true)
+  if (year) aq = aq.eq('year_in_school', year)
+
+  const [{ data, error }, { data: archData }] = await Promise.all([q, aq])
   if (error) return res.status(500).json({ error: error.message })
   const avgs = {}
   for (const dim of DIMS) {
     const vals = (data || []).map(r => r[`rating_${dim}`]).filter(v => v !== null && v !== undefined)
     avgs[dim] = vals.length > 0 ? Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 10) / 10 : null
   }
-  res.json({ avgs, count: (data || []).length })
+  const ratingCount = (data || []).filter(r => DIMS.some(d => r[`rating_${d}`] != null)).length
+  const archCount   = (archData || []).filter(s => s.submitters?.archetype_self != null).length
+  res.json({ avgs, count: ratingCount, archCount })
 })
 
 // ── Campus radar API (year-filtered, dual-layer) ────────────
@@ -1775,7 +1784,6 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
       '<p class="feed-text">' + bodyText + '</p>',
       '<div class="feed-tags">',
       subjectLabel ? '<span class="feed-tag subject-tag">' + escapeHtml(subjectLabel) + '</span>' : '',
-      s.dimension_tag ? '<span class="feed-tag dim-tag-' + s.dimension_tag + '">' + (dimLabels[s.dimension_tag] || s.dimension_tag) + '</span>' : '',
       '</div></div>'
     ].join('')
   }).join('')
@@ -1853,7 +1861,8 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
         <div id="ratings-chart">
           ${ratingBars}
         </div>
-        <p style="font-size:11px;color:#aaa;margin:10px 0 0">Source: Rate My Campus Wellbeing · ratemycampuswellbeing.com</p>
+        <p id="ratings-count" style="font-size:12px;color:#aaa;margin:8px 0 4px">Based on ${totalRatingsCount} rating${totalRatingsCount === 1 ? '' : 's'}</p>
+        <p style="font-size:11px;color:#aaa;margin:4px 0 0">Source: Rate My Campus Wellbeing · ratemycampuswellbeing.com</p>
       </div>` : ''}
 
       ${(() => {
@@ -1933,10 +1942,13 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
               : '<p style="font-size:12px;color:#888;margin:10px 0 0">Not enough responses yet to determine a campus lean.</p>')
           : ''
 
+        const archTotal = al ? al.total : 0
         const leanPanel =
           '<div class="scores-panel" style="margin:0">' +
             '<p class="panel-label">Campus Resilience Lean</p>' +
-            (al ? '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' + leanCards + '</div>' + leanText : '') +
+            (al && al.total >= 3 ? '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' + leanCards + '</div>' : '') +
+            (al ? leanText : '') +
+            '<p id="archetype-count" style="font-size:12px;color:#aaa;margin:8px 0 0">Based on ' + archTotal + ' archetype response' + (archTotal !== 1 ? 's' : '') + '</p>' +
           '</div>'
 
         return '<div id="insights-row">' + radarPanel + leanPanel + '</div>'
@@ -2010,6 +2022,8 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
           const r = await fetch(url)
           const d = await r.json()
           renderChart(d.avgs, d.count)
+          const archEl = document.getElementById('archetype-count')
+          if (archEl) archEl.textContent = 'Based on ' + (d.archCount || 0) + ' archetype response' + ((d.archCount || 0) !== 1 ? 's' : '')
         } catch(e) { console.error('Year filter error', e) }
       })
     })

@@ -646,6 +646,16 @@ function renderLanding(uc, csu, other) {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Rate My Campus Wellbeing</title>
+  <link rel="canonical" href="https://ratemycampuswellbeing.com/">
+  <meta name="description" content="Anonymous student wellbeing ratings for UC and CSU campuses. See how students rate mental health, social connection, academic pressure, and more.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://ratemycampuswellbeing.com/">
+  <meta property="og:title" content="Rate My Campus Wellbeing">
+  <meta property="og:description" content="Anonymous student wellbeing ratings for UC and CSU campuses.">
+  <meta property="og:site_name" content="Rate My Campus Wellbeing">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Rate My Campus Wellbeing">
+  <meta name="twitter:description" content="Anonymous student wellbeing ratings for UC and CSU campuses.">
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
@@ -739,6 +749,14 @@ function renderSubmitFlow(campus, allCampuses = []) {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Share Your Experience — Rate My Campus Wellbeing</title>
+  <link rel="canonical" href="https://ratemycampuswellbeing.com/submit">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://ratemycampuswellbeing.com/submit">
+  <meta property="og:title" content="Share Your Experience — Rate My Campus Wellbeing">
+  <meta property="og:description" content="Anonymously rate your campus wellbeing experience. Takes 2 minutes.">
+  <meta property="og:site_name" content="Rate My Campus Wellbeing">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Share Your Experience — Rate My Campus Wellbeing">
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
@@ -1406,6 +1424,12 @@ function renderReceipt(campusName, campusId, campusSlug, submitterId, dimension,
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Thank You — Rate My Campus Wellbeing</title>
+  <link rel="canonical" href="https://ratemycampuswellbeing.com/receipt">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://ratemycampuswellbeing.com/receipt">
+  <meta property="og:title" content="Thank You — Rate My Campus Wellbeing">
+  <meta property="og:site_name" content="Rate My Campus Wellbeing">
+  <meta name="twitter:card" content="summary">
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
@@ -1652,9 +1676,16 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${campus.name} Wellbeing — Rate My Campus Wellbeing</title>
-  <meta name="description" content="Student wellbeing scores and reviews for
-    ${campus.name}. See how students rate mental health, social connection,
-    academic pressure, and more.">
+  <link rel="canonical" href="https://ratemycampuswellbeing.com/campus/${campus.slug}">
+  <meta name="description" content="Student wellbeing scores and reviews for ${campus.name}. See how students rate mental health, social connection, academic pressure, and more.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://ratemycampuswellbeing.com/campus/${campus.slug}">
+  <meta property="og:title" content="${campus.name} Wellbeing — Rate My Campus Wellbeing">
+  <meta property="og:description" content="Student wellbeing scores and reviews for ${campus.name}.">
+  <meta property="og:site_name" content="Rate My Campus Wellbeing">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="${campus.name} Wellbeing — Rate My Campus Wellbeing">
+  <meta name="twitter:description" content="Student wellbeing scores and reviews for ${campus.name}.">
   <link rel="stylesheet" href="/style.css">
   <style>
     .year-pill{padding:6px 14px;border-radius:20px;border:1.5px solid #ccc;background:#fff;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s}
@@ -1705,7 +1736,7 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
         <div id="ratings-chart">
           ${ratingBars}
         </div>
-        <p style="font-size:11px;color:#aaa;margin:10px 0 0">Source: Rate My Campus Wellbeing</p>
+        <p style="font-size:11px;color:#aaa;margin:10px 0 0">Source: Rate My Campus Wellbeing · ratemycampuswellbeing.com</p>
       </div>` : ''}
 
       ${(() => {

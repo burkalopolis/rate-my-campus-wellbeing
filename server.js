@@ -1506,21 +1506,25 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
       applyFilters()
     }
 
-    document.getElementById('filter-all').addEventListener('click', () => {
+    const filterAllBtn  = document.getElementById('filter-all')
+    const filterClearBtn = document.getElementById('filter-clear')
+    const filterSelect   = document.getElementById('community-filter-select')
+
+    if (filterAllBtn) filterAllBtn.addEventListener('click', () => {
       activeFilters.clear()
       document.getElementById('active-chips').innerHTML = ''
-      document.getElementById('community-filter-select').value = ''
+      filterSelect.value = ''
       applyFilters()
     })
 
-    document.getElementById('filter-clear').addEventListener('click', () => {
+    if (filterClearBtn) filterClearBtn.addEventListener('click', () => {
       activeFilters.clear()
       document.getElementById('active-chips').innerHTML = ''
-      document.getElementById('community-filter-select').value = ''
+      filterSelect.value = ''
       applyFilters()
     })
 
-    document.getElementById('community-filter-select').addEventListener('change', e => {
+    if (filterSelect) filterSelect.addEventListener('change', e => {
       if (e.target.value) { addChip(e.target.value); e.target.value = '' }
     })
   </script>

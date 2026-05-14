@@ -1419,23 +1419,32 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
       applyFilters()
     }
 
-    document.getElementById('filter-all').addEventListener('click', () => {
-      activeFilters.clear()
-      document.getElementById('active-chips').innerHTML = ''
-      document.getElementById('community-filter-select').value = ''
-      applyFilters()
-    })
+    const filterAll = document.getElementById('filter-all')
+    if (filterAll) {
+      filterAll.addEventListener('click', () => {
+        activeFilters.clear()
+        document.getElementById('active-chips').innerHTML = ''
+        document.getElementById('community-filter-select').value = ''
+        applyFilters()
+      })
+    }
 
-    document.getElementById('filter-clear').addEventListener('click', () => {
-      activeFilters.clear()
-      document.getElementById('active-chips').innerHTML = ''
-      document.getElementById('community-filter-select').value = ''
-      applyFilters()
-    })
+    const filterClear = document.getElementById('filter-clear')
+    if (filterClear) {
+      filterClear.addEventListener('click', () => {
+        activeFilters.clear()
+        document.getElementById('active-chips').innerHTML = ''
+        document.getElementById('community-filter-select').value = ''
+        applyFilters()
+      })
+    }
 
-    document.getElementById('community-filter-select').addEventListener('change', e => {
-      if (e.target.value) { addChip(e.target.value); e.target.value = '' }
-    })
+    const communityFilter = document.getElementById('community-filter-select')
+    if (communityFilter) {
+      communityFilter.addEventListener('change', e => {
+        if (e.target.value) { addChip(e.target.value); e.target.value = '' }
+      })
+    }
   </script>
 </body>
 </html>`

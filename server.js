@@ -1072,6 +1072,14 @@ function renderSubmitFlow(campus, allCampuses = []) {
       document.getElementById('step2-next').disabled = !allTouched
     }
 
+    function proceedFromStep2() {
+      const nonNA = RATING_DIMS.filter(d => state.ratings[d] > 0)
+      state.dimension_tag = nonNA.length
+        ? nonNA.reduce((a, b) => state.ratings[a] >= state.ratings[b] ? a : b)
+        : RATING_DIMS[0]
+      goToStep(3)
+    }
+
     document.getElementById('step2-next').addEventListener('click', () => {
       const firstUntouched = RATING_DIMS.find(d => state.ratings[d] === null)
       if (firstUntouched) {
@@ -1080,12 +1088,32 @@ function renderSubmitFlow(campus, allCampuses = []) {
         card.scrollIntoView({ behavior: 'smooth', block: 'center' })
         return
       }
-      // Derive dimension_tag from highest non-N/A rating (drives archetype trigger)
-      const nonNA = RATING_DIMS.filter(d => state.ratings[d] > 0)
-      state.dimension_tag = nonNA.length
-        ? nonNA.reduce((a, b) => state.ratings[a] >= state.ratings[b] ? a : b)
-        : RATING_DIMS[0]
-      goToStep(3)
+      // Count sliders still at 0 (N/A)
+      const naCount = RATING_DIMS.filter(d => state.ratings[d] === 0).length
+      if (naCount > 2) {
+        const bodyEl = document.getElementById('na-modal-body')
+        bodyEl.textContent =
+          'You marked N/A for ' + naCount + ' areas. N/A means the service didn\u2019t apply to your experience \u2014 if you simply didn\u2019t use a service, a low rating may be more accurate than N/A. Would you like to go back and review, or continue with your current ratings?'
+        document.getElementById('na-modal-overlay').style.display = 'flex'
+        return
+      }
+      proceedFromStep2()
+    })
+
+    // Modal buttons
+    document.getElementById('na-modal-review').addEventListener('click', () => {
+      document.getElementById('na-modal-overlay').style.display = 'none'
+      const firstNA = RATING_DIMS.find(d => state.ratings[d] === 0)
+      if (firstNA) {
+        const slider = document.getElementById('slider-' + firstNA)
+        slider.focus()
+        slider.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }
+    })
+
+    document.getElementById('na-modal-continue').addEventListener('click', () => {
+      document.getElementById('na-modal-overlay').style.display = 'none'
+      proceedFromStep2()
     })
     // ── Section 1: sentence starter + textarea ─────────────
     const textarea    = document.getElementById('feedback-text')
@@ -1185,6 +1213,24 @@ function renderSubmitFlow(campus, allCampuses = []) {
       }
     })
   </script>
+
+  <!-- Zero-rating soft-nudge modal -->
+  <div id="na-modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1000;align-items:center;justify-content:center;padding:20px">
+    <div style="background:#fff;border-radius:16px;max-width:440px;width:100%;padding:28px 24px;box-shadow:0 8px 32px rgba(0,0,0,.18)">
+      <h2 style="font-size:20px;font-weight:800;color:#1a1a2e;margin:0 0 12px">Just checking in.</h2>
+      <p id="na-modal-body" style="font-size:15px;line-height:1.55;color:#444;margin:0 0 24px"></p>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <button id="na-modal-review"
+          style="padding:13px 0;border-radius:10px;border:none;background:#3a86ff;color:#fff;font-size:15px;font-weight:700;cursor:pointer">
+          Review My Ratings
+        </button>
+        <button id="na-modal-continue"
+          style="padding:13px 0;border-radius:10px;border:2px solid #ccc;background:#fff;color:#555;font-size:15px;font-weight:600;cursor:pointer">
+          Continue Anyway
+        </button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>`
 }
@@ -1251,7 +1297,7 @@ function renderReceipt(campusName, campusId, campusSlug, submitterId, dimension,
 
     <!-- 5. Footer -->
     <footer class="receipt-footer">
-      <p>© 2026 Rate My Campus Wellbeing · Resilience Assessment</p>
+      <p>© 2026 Rate My Campus Wellbeing · A CampusMind Product</p>
     </footer>
 
   </div>

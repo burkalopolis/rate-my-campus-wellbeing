@@ -389,36 +389,38 @@ app.post('/api/subscribe', upload.none(), async (req, res) => {
 
 // ── Admin queue ─────────────────────────────────────────────
 app.get('/admin', requireAdmin, async (req, res) => {
-  const { data: pending } = await supabaseAdmin
+  const { data: all } = await supabaseAdmin
     .from('submissions')
     .select(`
       id,
       feedback_text,
+      guidance_text,
       dimension_tag,
       archetype_derived,
       subject_tag,
       year_in_school,
       major,
-      image_url,
+      communities,
       created_at,
       flagged,
+      flag_reason,
+      rating_physical,
+      rating_emotional,
+      rating_intellectual,
+      rating_social,
+      rating_spiritual,
+      rating_environmental,
+      rating_occupational,
+      rating_financial,
       campuses ( name, slug )
-      submitters ( community_tags, archetype_self )
     `)
-    .eq('approved', false)
-    .eq('flagged', false)
-    .order('created_at', { ascending: true })
-    .limit(50)
+    .eq('deleted', false)
+    .order('created_at', { ascending: false })
 
-  const { data: approved } = await supabaseAdmin
-    .from("submissions")
-    .select(`id, feedback_text, dimension_tag, archetype_derived, subject_tag, year_in_school, major, image_url, created_at, campuses ( name, slug ), submitters ( community_tags )`)
-    .eq("approved", true)
-    .eq("deleted", false)
-    .order("created_at", { ascending: false })
-    .limit(50)
-
-  res.send(renderAdminQueue(pending || [], approved || []))
+  const rows = all || []
+  const normal  = rows.filter(r => !r.flagged)
+  const flagged = rows.filter(r =>  r.flagged)
+  res.send(renderAdminQueue(normal, flagged, rows.length))
 })
 
 // ============================================================
@@ -591,6 +593,19 @@ app.post('/api/admin/flag/:id', requireAdmin, async (req, res) => {
     .eq('id', id)
 
   if (error) return res.status(500).json({ error: error.message })
+  res.json({ success: true })
+})
+
+// ── POST /api/admin/unflag/:id ─────────────────────────────
+app.post('/api/admin/unflag/:id', requireAdmin, async (req, res) => {
+  const { id } = req.params
+  const { error } = await supabaseAdmin
+    .from('submissions')
+    .update({ flagged: false, flag_reason: null })
+    .eq('id', id)
+  if (error) return res.status(500).json({ error: error.message })
+  res.json({ success: true })
+})
 
 // ── POST /api/admin/delete/:id ─────────────────────────────
 app.post("/api/admin/delete/:id", requireAdmin, async (req, res) => {
@@ -600,9 +615,6 @@ app.post("/api/admin/delete/:id", requireAdmin, async (req, res) => {
     .update({ deleted: true })
     .eq("id", id)
   if (error) return res.status(500).json({ error: error.message })
-  res.json({ success: true })
-})
-
   res.json({ success: true })
 })
 
@@ -2043,29 +2055,63 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
 </html>`
 }
 
-function renderAdminQueue(pending, approved) {
-  const rows = pending.map(s => {
-    const communityTags = s.submitters?.community_tags || []
-    return [
-      '<div class="admin-row" id="row-' + s.id + '">',
-      '<div class="admin-meta">',
-      '<strong>' + escapeHtml(s.campuses?.name || 'Unknown') + '</strong>',
-      s.subject_tag ? '<span class="meta-pill">' + escapeHtml(s.subject_tag) + '</span>' : '',
-      s.dimension_tag ? '<span class="meta-pill">' + escapeHtml(s.dimension_tag) + '</span>' : '',
-      s.archetype_derived ? '<span class="meta-pill">' + escapeHtml(s.archetype_derived) + '</span>' : '',
+function renderAdminQueue(normal, flagged, total) {
+  const RATING_KEYS = [
+    ['rating_physical','Phy'],['rating_emotional','Emo'],['rating_intellectual','Int'],
+    ['rating_social','Soc'],['rating_spiritual','Spi'],['rating_environmental','Env'],
+    ['rating_occupational','Occ'],['rating_financial','Fin']
+  ]
+
+  function ratingColor(v) {
+    if (v == null) return '#e5e7eb'
+    if (v <= 3)  return '#fca5a5'
+    if (v <= 5)  return '#fde68a'
+    if (v <= 7)  return '#86efac'
+    return '#4ade80'
+  }
+
+  function buildCard(s, isFlagged) {
+    const communityTags = s.communities ? s.communities.split(',').map(t => t.trim()).filter(Boolean) : []
+    const date = new Date(s.created_at).toLocaleDateString('en-US', {
+      month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/Los_Angeles'
+    })
+    const ratingPills = RATING_KEYS.map(([col, label]) => {
+      const v = s[col]
+      return '<span style="display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:600;background:' +
+        ratingColor(v) + ';color:#1a1a2e">' + label + (v != null ? ':' + v : ':–') + '</span>'
+    }).join('')
+
+    const parts = [
+      '<div class="admin-row" id="row-' + s.id + '" data-campus="' +
+        escapeHtml((s.campuses?.name || '').toLowerCase()) + '" data-flagged="' + (isFlagged ? '1' : '0') + '">',
+      '<div class="admin-meta" style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:6px">',
+      '<strong style="font-size:14px">' + escapeHtml(s.campuses?.name || 'Unknown') + '</strong>',
       s.year_in_school ? '<span class="meta-pill">' + escapeHtml(s.year_in_school) + ' year</span>' : '',
-      s.major ? '<span class="meta-pill">' + escapeHtml(s.major) + '</span>' : '',
-      communityTags.length ? '<span class="meta-pill">' + communityTags.join(', ') + '</span>' : '',
-      '<span class="meta-date">' + new Date(s.created_at).toLocaleDateString('en-US', {timeZone: 'America/Los_Angeles'}) + '</span>',
+      communityTags.length ? communityTags.map(t => '<span class="meta-pill">' + escapeHtml(t) + '</span>').join('') : '',
+      s.subject_tag ? '<span class="meta-pill" style="background:#dbeafe;color:#1e40af">' + escapeHtml(s.subject_tag) + '</span>' : '',
+      '<span class="meta-date" style="margin-left:auto">' + date + '</span>',
       '</div>',
-      s.image_url ? '<img src="' + escapeHtml(s.image_url) + '" class="admin-image-thumb" alt="Submission image">' : '',
-      '<p class="admin-text">' + escapeHtml(s.feedback_text) + '</p>',
-      '<div class="admin-actions">',
-      '<button class="btn-approve" onclick="approve(\u0027' + s.id + '\u0027)">✓ Approve</button>',
-      '<button class="btn-flag" onclick="flag(\u0027' + s.id + '\u0027)">✗ Flag</button>',
+      '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px">' + ratingPills + '</div>',
+      s.feedback_text ? '<p class="admin-text" style="margin:0 0 4px">' + escapeHtml(s.feedback_text) + '</p>' : '',
+      s.guidance_text  ? '<p class="admin-text" style="margin:0 0 4px;color:#6b7280;font-style:italic">' + escapeHtml(s.guidance_text) + '</p>' : '',
+      isFlagged && s.flag_reason ? '<p style="font-size:11px;color:#b45309;background:#fef3c7;padding:4px 8px;border-radius:6px;margin:4px 0">Flag reason: ' + escapeHtml(s.flag_reason) + '</p>' : '',
+      '<div class="admin-actions" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px">',
+      '<button class="btn-delete" onclick="doDelete(\u0027' + s.id + '\u0027)">🗑 Delete</button>',
+      isFlagged
+        ? '<button style="padding:5px 12px;border-radius:6px;border:1.5px solid #16a34a;background:#f0fdf4;color:#16a34a;font-size:12px;font-weight:600;cursor:pointer" onclick="doUnflag(\u0027' + s.id + '\u0027)">↩ Unflag</button>'
+        : '<button class="btn-flag" onclick="showFlagForm(\u0027' + s.id + '\u0027)">⚑ Flag</button>',
+      '<span id="flag-form-' + s.id + '" style="display:none">',
+      '<input id="flag-input-' + s.id + '" type="text" placeholder="Flag reason…" style="padding:4px 8px;border:1.5px solid #f59e0b;border-radius:6px;font-size:12px;width:180px">',
+      '<button style="padding:5px 10px;border-radius:6px;border:none;background:#f59e0b;color:#fff;font-size:12px;font-weight:600;cursor:pointer;margin-left:4px" onclick="confirmFlag(\u0027' + s.id + '\u0027)">Confirm</button>',
+      '<button style="padding:5px 10px;border-radius:6px;border:1.5px solid #ccc;background:#fff;color:#555;font-size:12px;cursor:pointer;margin-left:2px" onclick="cancelFlag(\u0027' + s.id + '\u0027)">✕</button>',
+      '</span>',
       '</div></div>'
-    ].join('')
-  }).join('')
+    ]
+    return parts.join('')
+  }
+
+  const normalHtml  = normal.length  === 0 ? '<p class="empty-state" style="padding:16px 0">No submissions yet.</p>'        : normal.map(s  => buildCard(s, false)).join('')
+  const flaggedHtml = flagged.length === 0 ? '<p class="empty-state" style="padding:16px 0">No flagged submissions.</p>' : flagged.map(s => buildCard(s, true)).join('')
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -2079,71 +2125,79 @@ function renderAdminQueue(pending, approved) {
   <div class="page-admin">
     <header class="nav">
       <span class="nav-logo">RMCW Admin</span>
-      <span class="admin-count">${pending.length} pending</span>
+      <span class="admin-count">${total} submission${total === 1 ? '' : 's'}</span>
     </header>
     <main class="admin-main">
-      ${pending.length === 0
-        ? '<p class="empty-state">Queue is clear. Nothing to review.</p>'
-        : rows
-      }
-      <div class="admin-section">
-        <h3 class="admin-section-title">Approved (${approved.length})</h3>
-        ${approved.length === 0 ? '<p class="empty-state">No approved submissions yet.</p>' : approved.map(s => {
-          const ct = s.submitters?.community_tags || []
-          return [
-            '<div class="admin-row approved-row" id="row-' + s.id + '">',
-            '<div class="admin-meta">',
-            '<strong>' + escapeHtml(s.campuses?.name || '') + '</strong>',
-            s.dimension_tag ? '<span class="meta-pill">' + s.dimension_tag + '</span>' : '',
-            s.year_in_school ? '<span class="meta-pill">' + s.year_in_school + ' year</span>' : '',
-            s.major ? '<span class="meta-pill">' + escapeHtml(s.major) + '</span>' : '',
-            ct.length ? '<span class="meta-pill">' + ct.join(', ') + '</span>' : '',
-            '<span class="meta-date">' + new Date(s.created_at).toLocaleDateString('en-US', {timeZone: 'America/Los_Angeles'}) + '</span>',
-            '</div>',
-            s.image_url ? '<img src="' + escapeHtml(s.image_url) + '" class="admin-image-thumb" alt="">' : '',
-            '<p class="admin-text">' + escapeHtml(s.feedback_text) + '</p>',
-            '<div class="admin-actions">',
-            '<button class="btn-delete" onclick="softDelete(\u0027' + s.id + '\u0027)">🗑 Delete</button>',
-            '</div></div>'
-          ].join('')
-        }).join('')}
+
+      <div style="margin-bottom:20px">
+        <input id="search-bar" type="text" placeholder="Search by campus name…"
+          style="width:100%;max-width:400px;padding:8px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:14px"
+          oninput="filterCards(this.value)">
       </div>
+
+      <div class="admin-section">
+        <h3 class="admin-section-title">All Submissions (${normal.length})</h3>
+        <div id="all-submissions">${normalHtml}</div>
+      </div>
+
+      <div class="admin-section" style="margin-top:32px">
+        <h3 class="admin-section-title" style="color:#b45309">Flagged (${flagged.length})</h3>
+        <div id="flagged-submissions">${flaggedHtml}</div>
+      </div>
+
     </main>
   </div>
 
   <script>
     const pwd = prompt('Admin password:')
 
-    async function approve(id) {
-      const res = await fetch('/api/admin/approve/' + id, {
+    function filterCards(q) {
+      q = q.toLowerCase().trim()
+      document.querySelectorAll('.admin-row').forEach(row => {
+        const campus = row.dataset.campus || ''
+        row.style.display = (!q || campus.includes(q)) ? '' : 'none'
+      })
+    }
+
+    function showFlagForm(id) {
+      const form = document.getElementById('flag-form-' + id)
+      form.style.display = 'inline-flex'
+      form.style.alignItems = 'center'
+      document.getElementById('flag-input-' + id).focus()
+    }
+    function cancelFlag(id) {
+      document.getElementById('flag-form-' + id).style.display = 'none'
+      document.getElementById('flag-input-' + id).value = ''
+    }
+
+    async function confirmFlag(id) {
+      const reason = document.getElementById('flag-input-' + id).value.trim() || 'Flagged by admin'
+      const res = await fetch('/api/admin/flag/' + id, {
+        method: 'POST',
+        headers: { 'x-admin-password': pwd, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason })
+      })
+      if (!res.ok) { alert('Error flagging submission'); return }
+      const card = document.getElementById('row-' + id)
+      card.remove()
+      const dest = document.getElementById('flagged-submissions')
+      const empty = dest.querySelector('.empty-state')
+      if (empty) empty.remove()
+      card.dataset.flagged = '1'
+      dest.prepend(card)
+    }
+
+    async function doUnflag(id) {
+      const res = await fetch('/api/admin/unflag/' + id, {
         method: 'POST',
         headers: { 'x-admin-password': pwd }
       })
-      if (res.ok) {
-        document.getElementById('row-' + id).remove()
-      } else {
-        alert('Error approving submission')
-      }
+      if (!res.ok) { alert('Error unflagging submission'); return }
+      location.reload()
     }
 
-    async function flag(id) {
-      const reason = prompt('Flag reason (optional):') || 'Flagged by admin'
-      const res = await fetch('/api/admin/flag/' + id, {
-        method: 'POST',
-        headers: {
-          'x-admin-password': pwd,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ reason })
-      })
-      if (res.ok) {
-        document.getElementById('row-' + id).remove()
-      } else {
-        alert('Error flagging submission')
-      }
-    async function softDelete(id) {
-      const confirm = prompt('Type DELETE to permanently remove this submission from the campus page:')
-      if (confirm !== 'DELETE') return
+    async function doDelete(id) {
+      if (!confirm('Permanently delete this submission?')) return
       const res = await fetch('/api/admin/delete/' + id, {
         method: 'POST',
         headers: { 'x-admin-password': pwd }
@@ -2153,7 +2207,6 @@ function renderAdminQueue(pending, approved) {
       } else {
         alert('Error deleting submission')
       }
-    }
     }
   </script>
 </body>

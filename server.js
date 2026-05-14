@@ -1516,9 +1516,6 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
         </div>
         <div class="campus-stats">
           <span class="stat-pill">${count} reviews</span>
-          ${dominant
-            ? `<span class="stat-pill">Leans ${archLabels[dominant.archetype_tag]?.name}</span>`
-            : ''}
         </div>
       </div>
 
@@ -1537,25 +1534,6 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
         <p style="font-size:12px;color:#888;margin:10px 0 2px">Based on ${totalRatingsCount} rating${totalRatingsCount === 1 ? '' : 's'}</p>
         <p style="font-size:11px;color:#aaa;margin:0">Source: Rate My Campus Wellbeing</p>
       </div>` : ''}
-
-      <div class="scores-grid">
-        <div class="scores-panel">
-          <p class="panel-label">8 dimensions of wellness</p>
-          ${dimensionBars}
-        </div>
-        <div class="scores-panel">
-          <p class="panel-label">Resilience archetype profile</p>
-          <div class="arch-grid">
-            ${archetypeCards}
-          </div>
-          ${dominant ? `
-          <p class="arch-insight">
-            ${campus.name} leans
-            <strong>${archLabels[dominant.archetype_tag]?.name}</strong>
-            based on ${count} student reviews.
-          </p>` : ''}
-        </div>
-      </div>
 
       <div class="feed-section">
         <div class="feed-header">

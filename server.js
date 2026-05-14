@@ -770,7 +770,7 @@ function renderSubmitFlow(campus, allCampuses = []) {
 
       </div>
 
-      <button class="btn-primary" id="step2-next" disabled>
+      <button class="btn-primary" id="step2-next">
         Continue →
       </button>
     </div>
@@ -1020,7 +1020,6 @@ function renderSubmitFlow(campus, allCampuses = []) {
         }
         state.subject_tags = Array.from(document.querySelectorAll('#subject-tags .bubble.selected')).map(b => b.dataset.value)
         state.subject_tag = state.subject_tags[0] || null
-        checkStep2()
       })
     // ── Rating sliders (Step 2) ────────────────────────────
     const RATING_DIMS   = ['physical','emotional','intellectual','social','spiritual','environmental','occupational','financial']
@@ -1053,7 +1052,6 @@ function renderSubmitFlow(campus, allCampuses = []) {
         document.getElementById('label-' + dim).textContent = ADVERBS[dim] + ' \u2014 ' + SCALE_LABELS[val]
         card.classList.remove('rating-card-error')
         updateRatingProgress()
-        checkStep2()
       })
 
       // Hover accordion
@@ -1084,12 +1082,6 @@ function renderSubmitFlow(campus, allCampuses = []) {
       document.getElementById('rating-progress-fill').style.width = (aboveNA / 8 * 100) + '%'
     }
 
-    function checkStep2() {
-      // Enable Continue when all 8 touched (any value including 0 = N/A)
-      const allTouched = RATING_DIMS.every(d => state.ratings[d] !== null)
-      document.getElementById('step2-next').disabled = !allTouched
-    }
-
     function proceedFromStep2() {
       const nonNA = RATING_DIMS.filter(d => state.ratings[d] > 0)
       state.dimension_tag = nonNA.length
@@ -1099,15 +1091,8 @@ function renderSubmitFlow(campus, allCampuses = []) {
     }
 
     document.getElementById('step2-next').addEventListener('click', () => {
-      const firstUntouched = RATING_DIMS.find(d => state.ratings[d] === null)
-      if (firstUntouched) {
-        const card = document.getElementById('card-' + firstUntouched)
-        card.classList.add('rating-card-error')
-        card.scrollIntoView({ behavior: 'smooth', block: 'center' })
-        return
-      }
-      // Count sliders still at 0 (N/A)
-      const naCount = RATING_DIMS.filter(d => state.ratings[d] === 0).length
+      // Count sliders at 0 or never touched (both treated as N/A)
+      const naCount = RATING_DIMS.filter(d => !state.ratings[d] || state.ratings[d] === 0).length
       if (naCount >= 1) {
         const bodyEl = document.getElementById('na-modal-body')
         bodyEl.textContent =

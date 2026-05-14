@@ -218,6 +218,24 @@ app.get('/campus/:slug', async (req, res) => {
   const ALL_YEARS = ['1st','2nd','3rd','4th','5th+','grad','alumni','dropout']
   const yearDist = ALL_YEARS.filter(y => (ratingRows || []).some(r => r.year_in_school === y))
 
+  // Archetype lean from archetype_self on submitters
+  const archCounts = { guardian: 0, warrior: 0, guide: 0, healer: 0 }
+  for (const s of (allSubmissions || [])) {
+    const val = s.submitters?.archetype_self
+    if (val && val in archCounts) archCounts[val]++
+  }
+  const archTotal = Object.values(archCounts).reduce((a, b) => a + b, 0)
+  const archetypeLean = {
+    counts: archCounts,
+    total: archTotal,
+    pcts: Object.fromEntries(
+      Object.entries(archCounts).map(([k, v]) => [k, archTotal > 0 ? Math.round(v / archTotal * 100) : 0])
+    ),
+    dominant: archTotal >= 3
+      ? Object.entries(archCounts).reduce((a, b) => b[1] > a[1] ? b : a)[0]
+      : null
+  }
+
   res.send(renderCampusPage(
     campus,
     archetypeScores || [],
@@ -227,7 +245,8 @@ app.get('/campus/:slug', async (req, res) => {
     ratingAvgs,
     totalRatingsCount,
     yearDist,
-    campus.id
+    campus.id,
+    archetypeLean
   ))
 })
 
@@ -1407,7 +1426,7 @@ function renderReceipt(campusName, campusId, campusSlug, submitterId, dimension,
 </html>`
 }
 
-function renderCampusPage(campus, archetypeScores, dimensionScores, submissions, count, ratingAvgs = {}, totalRatingsCount = 0, yearDist = [], campusId = '') {
+function renderCampusPage(campus, archetypeScores, dimensionScores, submissions, count, ratingAvgs = {}, totalRatingsCount = 0, yearDist = [], campusId = '', archetypeLean = null) {
   const dominant = archetypeScores.find(a => a.is_dominant)
 
   const archLabels = {
@@ -1572,6 +1591,7 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
       ${hasRatings ? `
       <div class="scores-panel" style="margin-bottom:24px">
         <p class="panel-label">Campus Support Ratings</p>
+        <p style="font-size:11px;color:#aaa;margin:-4px 0 14px">Scale: 0 = N/A &nbsp;·&nbsp; 1 = No Support &nbsp;·&nbsp; 5 = Neutral &nbsp;·&nbsp; 7 = Good &nbsp;·&nbsp; 10 = Outstanding</p>
         ${yearPills}
         <div id="ratings-chart">
           ${ratingBars}
@@ -1579,6 +1599,34 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
         <p id="ratings-count" style="font-size:12px;color:#888;margin:10px 0 2px">Based on ${totalRatingsCount} rating${totalRatingsCount === 1 ? '' : 's'}</p>
         <p style="font-size:11px;color:#aaa;margin:0">Source: Rate My Campus Wellbeing</p>
       </div>` : ''}
+
+      ${(() => {
+        const al = archetypeLean
+        if (!al) return ''
+        const cards = ['guardian','warrior','guide','healer']
+        const meta = {
+          guardian: { emoji: '🏔️', name: 'Architect', phase: 'Academic + Career',  color: '#C4856A' },
+          warrior:  { emoji: '⚡',  name: 'Warrior',   phase: 'Emotional + Social', color: '#4A5080' },
+          guide:    { emoji: '🍃',  name: 'Guide',     phase: 'Spiritual + Environment', color: '#C8B84A' },
+          healer:   { emoji: '💦',  name: 'Healer',    phase: 'Physical + Financial', color: '#7BA898' }
+        }
+        const cardHTML = cards.map(key => {
+          const m   = meta[key]
+          const pct = al.pcts[key] || 0
+          const isDom = al.dominant === key
+          return '<div style="background:' + m.color + '1a;border:2px solid ' + (isDom ? m.color : '#e5e5e5') + ';border-radius:12px;padding:16px;position:relative">' +
+            (isDom ? '<span style="position:absolute;top:10px;right:10px;background:' + m.color + ';color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px">Leading</span>' : '') +
+            '<div style="font-size:26px;margin-bottom:4px">' + m.emoji + '</div>' +
+            '<div style="font-size:15px;font-weight:800;color:#1a1a2e">' + m.name + '</div>' +
+            '<div style="font-size:11px;color:#666;margin:2px 0 8px">' + m.phase + '</div>' +
+            '<div style="font-size:22px;font-weight:800;color:' + m.color + '">' + pct + '%</div>' +
+          '</div>'
+        }).join('')
+        const leanText = al.dominant
+          ? '<p style="font-size:13px;color:#555;margin:12px 0 0"><strong>' + campus.name + '</strong> leans <strong>' + meta[al.dominant].name + '</strong> based on <strong>' + al.total + '</strong> student response' + (al.total === 1 ? '' : 's') + '.</p>'
+          : '<p style="font-size:13px;color:#888;margin:12px 0 0">Not enough responses yet to determine a campus lean.</p>'
+        return '<div class="scores-panel" style="margin-bottom:24px"><p class="panel-label">Campus Resilience Lean</p><div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">' + cardHTML + '</div>' + leanText + '</div>'
+      })()}
 
       <div class="feed-section">
         <div class="feed-header">

@@ -315,14 +315,15 @@ app.post('/api/submit', submitLimiter, upload.single('image'), async (req, res) 
       guidance_text:      wish_text      || null,
       guidance_dimension: wish_dimension || null,
       communities:    communitiesText   || null,
-      rating_physical:      rating_physical      != null ? parseFloat(rating_physical)      : null,
-      rating_emotional:     rating_emotional     != null ? parseFloat(rating_emotional)     : null,
-      rating_intellectual:  rating_intellectual  != null ? parseFloat(rating_intellectual)  : null,
-      rating_social:        rating_social        != null ? parseFloat(rating_social)        : null,
-      rating_spiritual:     rating_spiritual     != null ? parseFloat(rating_spiritual)     : null,
-      rating_environmental: rating_environmental != null ? parseFloat(rating_environmental) : null,
-      rating_occupational:  rating_occupational  != null ? parseFloat(rating_occupational)  : null,
-      rating_financial:     rating_financial     != null ? parseFloat(rating_financial)     : null
+      // 0 = N/A (student opted out) → store as null; 1–10 → store as integer
+      rating_physical:      (rating_physical      && parseFloat(rating_physical)      > 0) ? Math.round(parseFloat(rating_physical))      : null,
+      rating_emotional:     (rating_emotional     && parseFloat(rating_emotional)     > 0) ? Math.round(parseFloat(rating_emotional))     : null,
+      rating_intellectual:  (rating_intellectual  && parseFloat(rating_intellectual)  > 0) ? Math.round(parseFloat(rating_intellectual))  : null,
+      rating_social:        (rating_social        && parseFloat(rating_social)        > 0) ? Math.round(parseFloat(rating_social))        : null,
+      rating_spiritual:     (rating_spiritual     && parseFloat(rating_spiritual)     > 0) ? Math.round(parseFloat(rating_spiritual))     : null,
+      rating_environmental: (rating_environmental && parseFloat(rating_environmental) > 0) ? Math.round(parseFloat(rating_environmental)) : null,
+      rating_occupational:  (rating_occupational  && parseFloat(rating_occupational)  > 0) ? Math.round(parseFloat(rating_occupational))  : null,
+      rating_financial:     (rating_financial     && parseFloat(rating_financial)     > 0) ? Math.round(parseFloat(rating_financial))     : null
     }
 
     const { data: submission, error: submissionError } = await supabase
@@ -599,7 +600,7 @@ function renderSubmitFlow(campus, allCampuses = []) {
     <div class="step hidden" id="step-2">
       <p class="step-eyebrow">Rate Your Campus</p>
       <h2 id="step2-heading">How well did your campus support you?</h2>
-      <p class="step-sub">Rate each area honestly. All 8 are required.</p>
+      <p class="step-sub">Rate how well your campus supported you in each area. Select N/A if the service did not apply to your experience.</p>
       <div class="rating-progress-row">
         <span class="rating-progress-label"><span id="rating-touched-count">0</span> of 8 rated</span>
         <div class="rating-progress-track"><div class="rating-progress-fill" id="rating-progress-fill"></div></div>
@@ -607,16 +608,15 @@ function renderSubmitFlow(campus, allCampuses = []) {
 
       <div class="rating-cards" id="rating-cards">
 
-        <div class="rating-card" id="card-physical">
+        <div class="rating-card" id="card-physical" style="--dim-color:#D4897A">
           <div class="rating-card-header">
             <span class="rating-dim-name">Physical</span>
             <span class="rating-dim-label">Nourishment, Rest &amp; Recovery</span>
           </div>
+          <div class="rating-dynamic-label" id="label-physical">Physically — N/A</div>
           <div class="rating-slider-row">
-            <span class="rating-scale-label">No Support</span>
             <input type="range" class="rating-slider" id="slider-physical" data-dim="physical" min="0" max="10" step="1" value="0" data-touched="false">
-            <span class="rating-score" id="score-physical">—</span>
-            <span class="rating-scale-label">Exceptional</span>
+            <span class="rating-score" id="score-physical">0</span>
           </div>
           <details class="rating-accordion">
             <summary>What does this include? ▾</summary>
@@ -624,16 +624,15 @@ function renderSubmitFlow(campus, allCampuses = []) {
           </details>
         </div>
 
-        <div class="rating-card" id="card-emotional">
+        <div class="rating-card" id="card-emotional" style="--dim-color:#E8B484">
           <div class="rating-card-header">
             <span class="rating-dim-name">Emotional</span>
             <span class="rating-dim-label">Mental Health &amp; Crisis Support</span>
           </div>
+          <div class="rating-dynamic-label" id="label-emotional">Emotionally — N/A</div>
           <div class="rating-slider-row">
-            <span class="rating-scale-label">No Support</span>
             <input type="range" class="rating-slider" id="slider-emotional" data-dim="emotional" min="0" max="10" step="1" value="0" data-touched="false">
-            <span class="rating-score" id="score-emotional">—</span>
-            <span class="rating-scale-label">Exceptional</span>
+            <span class="rating-score" id="score-emotional">0</span>
           </div>
           <details class="rating-accordion">
             <summary>What does this include? ▾</summary>
@@ -641,16 +640,15 @@ function renderSubmitFlow(campus, allCampuses = []) {
           </details>
         </div>
 
-        <div class="rating-card" id="card-intellectual">
+        <div class="rating-card" id="card-intellectual" style="--dim-color:#E8D98A">
           <div class="rating-card-header">
             <span class="rating-dim-name">Intellectual</span>
             <span class="rating-dim-label">Academic Support &amp; Risk Navigation</span>
           </div>
+          <div class="rating-dynamic-label" id="label-intellectual">Intellectually — N/A</div>
           <div class="rating-slider-row">
-            <span class="rating-scale-label">No Support</span>
             <input type="range" class="rating-slider" id="slider-intellectual" data-dim="intellectual" min="0" max="10" step="1" value="0" data-touched="false">
-            <span class="rating-score" id="score-intellectual">—</span>
-            <span class="rating-scale-label">Exceptional</span>
+            <span class="rating-score" id="score-intellectual">0</span>
           </div>
           <details class="rating-accordion">
             <summary>What does this include? ▾</summary>
@@ -658,16 +656,15 @@ function renderSubmitFlow(campus, allCampuses = []) {
           </details>
         </div>
 
-        <div class="rating-card" id="card-social">
+        <div class="rating-card" id="card-social" style="--dim-color:#94C48A">
           <div class="rating-card-header">
             <span class="rating-dim-name">Social</span>
             <span class="rating-dim-label">Belonging, Inclusion &amp; Community</span>
           </div>
+          <div class="rating-dynamic-label" id="label-social">Socially — N/A</div>
           <div class="rating-slider-row">
-            <span class="rating-scale-label">No Support</span>
             <input type="range" class="rating-slider" id="slider-social" data-dim="social" min="0" max="10" step="1" value="0" data-touched="false">
-            <span class="rating-score" id="score-social">—</span>
-            <span class="rating-scale-label">Exceptional</span>
+            <span class="rating-score" id="score-social">0</span>
           </div>
           <details class="rating-accordion">
             <summary>What does this include? ▾</summary>
@@ -675,16 +672,15 @@ function renderSubmitFlow(campus, allCampuses = []) {
           </details>
         </div>
 
-        <div class="rating-card" id="card-spiritual">
+        <div class="rating-card" id="card-spiritual" style="--dim-color:#90C8D8">
           <div class="rating-card-header">
             <span class="rating-dim-name">Spiritual</span>
             <span class="rating-dim-label">Orientation, Purpose &amp; Campus Culture</span>
           </div>
+          <div class="rating-dynamic-label" id="label-spiritual">Spiritually — N/A</div>
           <div class="rating-slider-row">
-            <span class="rating-scale-label">No Support</span>
             <input type="range" class="rating-slider" id="slider-spiritual" data-dim="spiritual" min="0" max="10" step="1" value="0" data-touched="false">
-            <span class="rating-score" id="score-spiritual">—</span>
-            <span class="rating-scale-label">Exceptional</span>
+            <span class="rating-score" id="score-spiritual">0</span>
           </div>
           <details class="rating-accordion">
             <summary>What does this include? ▾</summary>
@@ -692,16 +688,15 @@ function renderSubmitFlow(campus, allCampuses = []) {
           </details>
         </div>
 
-        <div class="rating-card" id="card-environmental">
+        <div class="rating-card" id="card-environmental" style="--dim-color:#8A9AC4">
           <div class="rating-card-header">
             <span class="rating-dim-name">Environmental</span>
             <span class="rating-dim-label">Safety, Housing &amp; Campus Navigability</span>
           </div>
+          <div class="rating-dynamic-label" id="label-environmental">Environmental Support — N/A</div>
           <div class="rating-slider-row">
-            <span class="rating-scale-label">No Support</span>
             <input type="range" class="rating-slider" id="slider-environmental" data-dim="environmental" min="0" max="10" step="1" value="0" data-touched="false">
-            <span class="rating-score" id="score-environmental">—</span>
-            <span class="rating-scale-label">Exceptional</span>
+            <span class="rating-score" id="score-environmental">0</span>
           </div>
           <details class="rating-accordion">
             <summary>What does this include? ▾</summary>
@@ -709,16 +704,15 @@ function renderSubmitFlow(campus, allCampuses = []) {
           </details>
         </div>
 
-        <div class="rating-card" id="card-occupational">
+        <div class="rating-card" id="card-occupational" style="--dim-color:#A886B8">
           <div class="rating-card-header">
             <span class="rating-dim-name">Occupational</span>
             <span class="rating-dim-label">Career Direction &amp; Opportunity Access</span>
           </div>
+          <div class="rating-dynamic-label" id="label-occupational">Occupational Support — N/A</div>
           <div class="rating-slider-row">
-            <span class="rating-scale-label">No Support</span>
             <input type="range" class="rating-slider" id="slider-occupational" data-dim="occupational" min="0" max="10" step="1" value="0" data-touched="false">
-            <span class="rating-score" id="score-occupational">—</span>
-            <span class="rating-scale-label">Exceptional</span>
+            <span class="rating-score" id="score-occupational">0</span>
           </div>
           <details class="rating-accordion">
             <summary>What does this include? ▾</summary>
@@ -726,16 +720,15 @@ function renderSubmitFlow(campus, allCampuses = []) {
           </details>
         </div>
 
-        <div class="rating-card" id="card-financial">
+        <div class="rating-card" id="card-financial" style="--dim-color:#D4A0B8">
           <div class="rating-card-header">
             <span class="rating-dim-name">Financial</span>
             <span class="rating-dim-label">Affordability, Aid &amp; Value</span>
           </div>
+          <div class="rating-dynamic-label" id="label-financial">Financially — N/A</div>
           <div class="rating-slider-row">
-            <span class="rating-scale-label">No Support</span>
             <input type="range" class="rating-slider" id="slider-financial" data-dim="financial" min="0" max="10" step="1" value="0" data-touched="false">
-            <span class="rating-score" id="score-financial">—</span>
-            <span class="rating-scale-label">Exceptional</span>
+            <span class="rating-score" id="score-financial">0</span>
           </div>
           <details class="rating-accordion">
             <summary>What does this include? ▾</summary>
@@ -980,54 +973,86 @@ function renderSubmitFlow(campus, allCampuses = []) {
         checkStep2()
       })
     // ── Rating sliders (Step 2) ────────────────────────────
-    const RATING_DIMS = ['physical','emotional','intellectual','social','spiritual','environmental','occupational','financial']
+    const RATING_DIMS   = ['physical','emotional','intellectual','social','spiritual','environmental','occupational','financial']
+    const SCALE_LABELS  = ['N/A','No Support','Very Poor','Poor','Below Average','Neutral','Adequate','Good','Very Good','Excellent','Outstanding']
+    const ADVERBS       = {
+      physical:'Physically', emotional:'Emotionally', intellectual:'Intellectually',
+      social:'Socially', spiritual:'Spiritually', financial:'Financially',
+      environmental:'Environmental Support', occupational:'Occupational Support'
+    }
+
+    function setSliderFill(slider, value) {
+      slider.style.setProperty('--fill-pct', (value / 10 * 100) + '%')
+    }
+
+    // Initialise all sliders at fill 0
+    RATING_DIMS.forEach(dim => setSliderFill(document.getElementById('slider-' + dim), 0))
 
     RATING_DIMS.forEach(dim => {
-      document.getElementById('slider-' + dim).addEventListener('input', function () {
-        if (this.dataset.touched === 'false') {
-          this.dataset.touched = 'true'
-          updateRatingProgress()
-        }
-        state.ratings[dim] = parseInt(this.value)
-        document.getElementById('score-' + dim).textContent = this.value
-        document.getElementById('card-' + dim).classList.remove('rating-card-error')
+      const slider = document.getElementById('slider-' + dim)
+      const card   = document.getElementById('card-' + dim)
+      const accord = card.querySelector('.rating-accordion')
+
+      // Slider input
+      slider.addEventListener('input', function () {
+        const val = parseInt(this.value)
+        this.dataset.touched = 'true'
+        state.ratings[dim] = val
+        setSliderFill(this, val)
+        document.getElementById('score-' + dim).textContent = val
+        document.getElementById('label-' + dim).textContent = ADVERBS[dim] + ' \u2014 ' + SCALE_LABELS[val]
+        card.classList.remove('rating-card-error')
+        updateRatingProgress()
         checkStep2()
+      })
+
+      // Hover accordion
+      card.addEventListener('mouseenter', () => {
+        document.querySelectorAll('.rating-accordion').forEach(d => d.removeAttribute('open'))
+        accord.setAttribute('open', '')
+      })
+      card.addEventListener('mouseleave', () => {
+        accord.removeAttribute('open')
       })
     })
 
-    // Accordion: one open at a time
+    // Manual click on summary toggles (overrides hover state)
     document.querySelectorAll('.rating-accordion summary').forEach(summary => {
-      summary.addEventListener('click', () => {
-        const thisEl = summary.parentElement
-        document.querySelectorAll('.rating-accordion').forEach(d => {
-          if (d !== thisEl) d.removeAttribute('open')
-        })
+      summary.addEventListener('click', e => {
+        e.preventDefault()
+        const det    = summary.parentElement
+        const isOpen = det.hasAttribute('open')
+        document.querySelectorAll('.rating-accordion').forEach(d => d.removeAttribute('open'))
+        if (!isOpen) det.setAttribute('open', '')
       })
     })
 
     function updateRatingProgress() {
-      const touched = RATING_DIMS.filter(d => state.ratings[d] !== null).length
-      document.getElementById('rating-touched-count').textContent = touched
-      document.getElementById('rating-progress-fill').style.width = (touched / 8 * 100) + '%'
+      // Counter: sliders rated above N/A (value > 0)
+      const aboveNA = RATING_DIMS.filter(d => state.ratings[d] !== null && state.ratings[d] > 0).length
+      document.getElementById('rating-touched-count').textContent = aboveNA
+      document.getElementById('rating-progress-fill').style.width = (aboveNA / 8 * 100) + '%'
     }
 
     function checkStep2() {
-      const allRated = RATING_DIMS.every(d => state.ratings[d] !== null)
-      document.getElementById('step2-next').disabled = !allRated
+      // Enable Continue when all 8 touched (any value including 0 = N/A)
+      const allTouched = RATING_DIMS.every(d => state.ratings[d] !== null)
+      document.getElementById('step2-next').disabled = !allTouched
     }
 
     document.getElementById('step2-next').addEventListener('click', () => {
-      const firstMissing = RATING_DIMS.find(d => state.ratings[d] === null)
-      if (firstMissing) {
-        const card = document.getElementById('card-' + firstMissing)
+      const firstUntouched = RATING_DIMS.find(d => state.ratings[d] === null)
+      if (firstUntouched) {
+        const card = document.getElementById('card-' + firstUntouched)
         card.classList.add('rating-card-error')
         card.scrollIntoView({ behavior: 'smooth', block: 'center' })
         return
       }
-      // Derive dimension_tag from highest-rated dimension (drives archetype on server)
-      state.dimension_tag = RATING_DIMS.reduce((a, b) =>
-        (state.ratings[a] ?? -1) >= (state.ratings[b] ?? -1) ? a : b
-      )
+      // Derive dimension_tag from highest non-N/A rating (drives archetype trigger)
+      const nonNA = RATING_DIMS.filter(d => state.ratings[d] > 0)
+      state.dimension_tag = nonNA.length
+        ? nonNA.reduce((a, b) => state.ratings[a] >= state.ratings[b] ? a : b)
+        : RATING_DIMS[0]
       goToStep(3)
     })
     // ── Section 1: sentence starter + textarea ─────────────

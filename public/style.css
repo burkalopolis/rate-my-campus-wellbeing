@@ -1790,3 +1790,44 @@ img { max-width: 100%; display: block; }
   line-height: 1.6;
   margin: 0;
 }
+
+/* ── Rating slider cards — color + layout overrides ─────── */
+.rating-card {
+  border-left: 4px solid var(--dim-color, var(--border));
+}
+.rating-dynamic-label {
+  font-family: 'Nunito', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--dim-color, var(--text-muted));
+  text-align: center;
+  margin-bottom: 8px;
+  letter-spacing: 0.01em;
+  min-height: 18px;
+}
+.rating-slider-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.rating-slider {
+  background: linear-gradient(
+    to right,
+    var(--dim-color, var(--accent)) 0%,
+    var(--dim-color, var(--accent)) var(--fill-pct, 0%),
+    #E8ECF2 var(--fill-pct, 0%),
+    #E8ECF2 100%
+  );
+}
+.rating-slider::-webkit-slider-thumb {
+  background: var(--dim-color, var(--accent));
+}
+.rating-slider::-moz-range-thumb {
+  background: var(--dim-color, var(--accent));
+}
+.rating-score {
+  color: var(--dim-color, var(--accent));
+  min-width: 24px;
+}

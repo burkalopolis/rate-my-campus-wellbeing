@@ -1588,7 +1588,7 @@ function renderReceipt(campusName, campusId, campusSlug, submitterId, dimension,
         Find My Resilience Archetype →
       </a>
       <a href="${campusHref}" class="btn-receipt-secondary">
-        View My Campus Wellbeing
+        See How ${campusName ? campusName : 'My Campus'} Scores
       </a>
     </div>
 

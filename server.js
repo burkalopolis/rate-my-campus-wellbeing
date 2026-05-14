@@ -869,6 +869,24 @@ function renderSubmitFlow(campus, allCampuses = []) {
 
   </div>
 
+  <!-- Zero-rating soft-nudge modal -->
+  <div id="na-modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1000;align-items:center;justify-content:center;padding:20px">
+    <div style="background:#fff;border-radius:16px;max-width:440px;width:100%;padding:28px 24px;box-shadow:0 8px 32px rgba(0,0,0,.18)">
+      <h2 style="font-size:20px;font-weight:800;color:#1a1a2e;margin:0 0 12px">Just checking in.</h2>
+      <p id="na-modal-body" style="font-size:15px;line-height:1.55;color:#444;margin:0 0 24px"></p>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <button id="na-modal-review"
+          style="padding:13px 0;border-radius:10px;border:none;background:#3a86ff;color:#fff;font-size:15px;font-weight:700;cursor:pointer">
+          Review My Ratings
+        </button>
+        <button id="na-modal-continue"
+          style="padding:13px 0;border-radius:10px;border:2px solid #ccc;background:#fff;color:#555;font-size:15px;font-weight:600;cursor:pointer">
+          Continue Anyway
+        </button>
+      </div>
+    </div>
+  </div>
+
   <script>
     // ── State ──────────────────────────────────────────────
     const state = {
@@ -1213,24 +1231,6 @@ function renderSubmitFlow(campus, allCampuses = []) {
       }
     })
   </script>
-
-  <!-- Zero-rating soft-nudge modal -->
-  <div id="na-modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1000;align-items:center;justify-content:center;padding:20px">
-    <div style="background:#fff;border-radius:16px;max-width:440px;width:100%;padding:28px 24px;box-shadow:0 8px 32px rgba(0,0,0,.18)">
-      <h2 style="font-size:20px;font-weight:800;color:#1a1a2e;margin:0 0 12px">Just checking in.</h2>
-      <p id="na-modal-body" style="font-size:15px;line-height:1.55;color:#444;margin:0 0 24px"></p>
-      <div style="display:flex;flex-direction:column;gap:10px">
-        <button id="na-modal-review"
-          style="padding:13px 0;border-radius:10px;border:none;background:#3a86ff;color:#fff;font-size:15px;font-weight:700;cursor:pointer">
-          Review My Ratings
-        </button>
-        <button id="na-modal-continue"
-          style="padding:13px 0;border-radius:10px;border:2px solid #ccc;background:#fff;color:#555;font-size:15px;font-weight:600;cursor:pointer">
-          Continue Anyway
-        </button>
-      </div>
-    </div>
-  </div>
 </body>
 </html>`
 }

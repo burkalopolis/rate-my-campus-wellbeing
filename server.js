@@ -126,6 +126,49 @@ app.get('/api/campus-ratings', async (req, res) => {
   res.json({ avgs, count: (data || []).length })
 })
 
+// ── Campus radar API (year-filtered, dual-layer) ────────────
+app.get('/api/campus-radar', async (req, res) => {
+  const { campus_id, campus_slug, year } = req.query
+  if (!campus_id) return res.status(400).json({ error: 'campus_id required' })
+  const DIMS = ['physical','emotional','intellectual','social','spiritual','environmental','occupational','financial']
+
+  // Layer 1: RMCW ratings
+  let q1 = supabaseAdmin.from('submissions')
+    .select('rating_physical,rating_emotional,rating_intellectual,rating_social,rating_spiritual,rating_environmental,rating_occupational,rating_financial')
+    .eq('campus_id', campus_id).neq('deleted', true)
+  if (year) q1 = q1.eq('year_in_school', year)
+  const { data: rmcwRows, error: rmcwErr } = await q1
+  if (rmcwErr) return res.status(500).json({ error: rmcwErr.message })
+  const rmcwAvgs = {}
+  for (const dim of DIMS) {
+    const vals = (rmcwRows || []).map(r => r[`rating_${dim}`]).filter(v => v != null)
+    rmcwAvgs[dim] = vals.length > 0 ? Math.round(vals.reduce((a,b)=>a+b,0)/vals.length*10)/10 : null
+  }
+
+  // Layer 2: CampusMind assessments (table may not exist yet)
+  let wellbeing = null
+  if (campus_slug) {
+    let q2 = supabaseAdmin.from('assessments')
+      .select('score_physical,score_emotional,score_intellectual,score_social,score_spiritual,score_environmental,score_occupational,score_financial')
+      .eq('campus_slug', campus_slug)
+    if (year) q2 = q2.eq('year_in_school', year)
+    const { data: wRows, error: wErr } = await q2
+    if (!wErr && wRows && wRows.length > 0) {
+      const wAvgs = {}
+      for (const dim of DIMS) {
+        const vals = wRows.map(r => r[`score_${dim}`]).filter(v => v != null)
+        wAvgs[dim] = vals.length > 0 ? Math.round(vals.reduce((a,b)=>a+b,0)/vals.length*10)/10 : null
+      }
+      wellbeing = { avgs: wAvgs, count: wRows.length }
+    }
+  }
+
+  res.json({
+    rmcw:      { avgs: rmcwAvgs, count: (rmcwRows || []).length },
+    wellbeing: wellbeing
+  })
+})
+
 // ── Campus public page ──────────────────────────────────────
 app.get('/campus/:slug', async (req, res) => {
   const { slug } = req.params
@@ -236,6 +279,21 @@ app.get('/campus/:slug', async (req, res) => {
       : null
   }
 
+  // Query CampusMind assessments for wellbeing radar layer (table may not exist yet)
+  let wellbeingAvgs = null, wellbeingCount = 0
+  const { data: wRows, error: wErr } = await supabaseAdmin
+    .from('assessments')
+    .select('score_physical,score_emotional,score_intellectual,score_social,score_spiritual,score_environmental,score_occupational,score_financial')
+    .eq('campus_slug', campus.slug)
+  if (!wErr && wRows && wRows.length > 0) {
+    wellbeingAvgs = {}
+    wellbeingCount = wRows.length
+    for (const dim of RATING_DIMS) {
+      const vals = wRows.map(r => r[`score_${dim}`]).filter(v => v != null)
+      wellbeingAvgs[dim] = vals.length > 0 ? Math.round(vals.reduce((a,b)=>a+b,0)/vals.length*10)/10 : null
+    }
+  }
+
   res.send(renderCampusPage(
     campus,
     archetypeScores || [],
@@ -246,7 +304,9 @@ app.get('/campus/:slug', async (req, res) => {
     totalRatingsCount,
     yearDist,
     campus.id,
-    archetypeLean
+    archetypeLean,
+    wellbeingAvgs,
+    wellbeingCount
   ))
 })
 
@@ -1426,7 +1486,7 @@ function renderReceipt(campusName, campusId, campusSlug, submitterId, dimension,
 </html>`
 }
 
-function renderCampusPage(campus, archetypeScores, dimensionScores, submissions, count, ratingAvgs = {}, totalRatingsCount = 0, yearDist = [], campusId = '', archetypeLean = null) {
+function renderCampusPage(campus, archetypeScores, dimensionScores, submissions, count, ratingAvgs = {}, totalRatingsCount = 0, yearDist = [], campusId = '', archetypeLean = null, wellbeingAvgs = null, wellbeingCount = 0) {
   const dominant = archetypeScores.find(a => a.is_dominant)
 
   const archLabels = {
@@ -1466,14 +1526,14 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
 
   const ratingBars = dimOrder.map(dim => {
     const avg = ratingAvgs[dim]
-    const pct = avg !== null ? (avg / 10 * 100) : 0
+    const pct = avg != null ? (avg / 10 * 100) : 0
     const label = dimLabels[dim]
     const color = dimColors[dim]
     return `
     <div style="margin-bottom:10px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
         <span style="font-size:13px;font-weight:600;color:#333">${label}</span>
-        <span style="font-size:13px;font-weight:700;color:#333">${avg !== null ? avg.toFixed(1) : 'N/A'}</span>
+        <span style="font-size:13px;font-weight:700;color:#333">${avg != null ? Number(avg).toFixed(1) : 'N/A'}</span>
       </div>
       <div style="background:#eee;border-radius:6px;height:10px;overflow:hidden">
         <div style="width:${pct}%;height:100%;background:${color};border-radius:6px;transition:width .4s"></div>
@@ -1556,6 +1616,11 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
   <style>
     .year-pill{padding:6px 14px;border-radius:20px;border:1.5px solid #ccc;background:#fff;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s}
     .year-pill.active{background:#3a86ff;border-color:#3a86ff;color:#fff}
+    .radar-toggle{padding:6px 12px;border-radius:20px;border:1.5px solid #ccc;background:#fff;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap}
+    .radar-toggle.active{background:#1a1a2e;border-color:#1a1a2e;color:#fff}
+    #insights-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
+    @media(max-width:640px){#insights-row{grid-template-columns:1fr}}
+    .radar-year-sel{padding:5px 10px;border-radius:8px;border:1.5px solid #ddd;font-size:12px;color:#555;background:#fff;margin-bottom:12px}
   </style>
 </head>
 <body>
@@ -1601,31 +1666,80 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
       </div>` : ''}
 
       ${(() => {
+        // ── Radar section (left) ───────────────────────────────
+        const rmcwCount = totalRatingsCount
+        const hasRmcw = rmcwCount >= 3
+        const hasWellbeing = wellbeingCount >= 3
+
+        const yearOpts = yearDist.map(y =>
+          '<option value="' + y + '">' + y + ' year</option>'
+        ).join('')
+
+        let radarBody
+        if (!hasRmcw && !hasWellbeing) {
+          radarBody = '<p style="font-size:13px;color:#888;padding:24px 0;text-align:center">Not enough data yet for this campus — check back as more students share their experience.</p>'
+        } else {
+          let note = ''
+          if (!hasRmcw)      note = '<p style="font-size:11px;color:#aaa;margin:6px 0 0">⚪ Campus Support data not yet available.</p>'
+          else if (!hasWellbeing) note = '<p style="font-size:11px;color:#aaa;margin:6px 0 0">⚪ Student Wellbeing data not yet available.</p>'
+          radarBody =
+            '<select id="radar-year-select" class="radar-year-sel">' +
+              '<option value="">All Years</option>' + yearOpts +
+            '</select>' +
+            '<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">' +
+              '<button class="radar-toggle active" data-mode="both">Show Both</button>' +
+              '<button class="radar-toggle" data-mode="campus">Campus Only</button>' +
+              '<button class="radar-toggle" data-mode="students">Students Only</button>' +
+            '</div>' +
+            '<div id="radar-svg-container" style="min-height:200px"></div>' +
+            note +
+            '<div style="display:flex;gap:16px;margin-top:10px;flex-wrap:wrap;font-size:10px;color:#aaa;line-height:1.6">' +
+              '<span><span style="color:#ef4444;font-weight:700">●</span> Campus Support · Rate My Campus Wellbeing · ratemycampuswellbeing.com</span>' +
+              '<span><span style="color:#ca8a04;font-weight:700">●</span> Student Wellbeing · CampusMind · campusmind.org/demo</span>' +
+            '</div>'
+        }
+
+        const radarPanel =
+          '<div class="scores-panel" style="margin:0">' +
+            '<p class="panel-label">Planning vs Wellbeing</p>' +
+            '<p style="font-size:12px;color:#888;margin:-4px 0 14px">How the campus rates vs how students are doing.</p>' +
+            radarBody +
+          '</div>'
+
+        // ── Archetype lean section (right) ─────────────────────
         const al = archetypeLean
-        if (!al) return ''
-        const cards = ['guardian','warrior','guide','healer']
         const meta = {
           guardian: { emoji: '🏔️', name: 'Architect', phase: 'Academic + Career',  color: '#C4856A' },
           warrior:  { emoji: '⚡',  name: 'Warrior',   phase: 'Emotional + Social', color: '#4A5080' },
           guide:    { emoji: '🍃',  name: 'Guide',     phase: 'Spiritual + Environment', color: '#C8B84A' },
           healer:   { emoji: '💦',  name: 'Healer',    phase: 'Physical + Financial', color: '#7BA898' }
         }
-        const cardHTML = cards.map(key => {
-          const m   = meta[key]
+        const leanCards = al ? ['guardian','warrior','guide','healer'].map(key => {
+          const m = meta[key]
           const pct = al.pcts[key] || 0
           const isDom = al.dominant === key
-          return '<div style="background:' + m.color + '1a;border:2px solid ' + (isDom ? m.color : '#e5e5e5') + ';border-radius:12px;padding:16px;position:relative">' +
-            (isDom ? '<span style="position:absolute;top:10px;right:10px;background:' + m.color + ';color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px">Leading</span>' : '') +
-            '<div style="font-size:26px;margin-bottom:4px">' + m.emoji + '</div>' +
-            '<div style="font-size:15px;font-weight:800;color:#1a1a2e">' + m.name + '</div>' +
-            '<div style="font-size:11px;color:#666;margin:2px 0 8px">' + m.phase + '</div>' +
-            '<div style="font-size:22px;font-weight:800;color:' + m.color + '">' + pct + '%</div>' +
+          return '<div style="background:' + m.color + '1a;border:2px solid ' + (isDom ? m.color : '#e5e5e5') + ';border-radius:12px;padding:14px;position:relative">' +
+            (isDom ? '<span style="position:absolute;top:8px;right:8px;background:' + m.color + ';color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px">Leading</span>' : '') +
+            '<div style="font-size:24px;margin-bottom:3px">' + m.emoji + '</div>' +
+            '<div style="font-size:14px;font-weight:800;color:#1a1a2e">' + m.name + '</div>' +
+            '<div style="font-size:11px;color:#666;margin:2px 0 6px">' + m.phase + '</div>' +
+            '<div style="font-size:20px;font-weight:800;color:' + m.color + '">' + pct + '%</div>' +
           '</div>'
-        }).join('')
-        const leanText = al.dominant
-          ? '<p style="font-size:13px;color:#555;margin:12px 0 0"><strong>' + campus.name + '</strong> leans <strong>' + meta[al.dominant].name + '</strong> based on <strong>' + al.total + '</strong> student response' + (al.total === 1 ? '' : 's') + '.</p>'
-          : '<p style="font-size:13px;color:#888;margin:12px 0 0">Not enough responses yet to determine a campus lean.</p>'
-        return '<div class="scores-panel" style="margin-bottom:24px"><p class="panel-label">Campus Resilience Lean</p><div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">' + cardHTML + '</div>' + leanText + '</div>'
+        }).join('') : ''
+
+        const leanText = al
+          ? (al.dominant
+              ? '<p style="font-size:12px;color:#555;margin:10px 0 0"><strong>' + campus.name + '</strong> leans <strong>' + meta[al.dominant].name + '</strong> based on <strong>' + al.total + '</strong> response' + (al.total === 1 ? '' : 's') + '.</p>'
+              : '<p style="font-size:12px;color:#888;margin:10px 0 0">Not enough responses yet to determine a campus lean.</p>')
+          : ''
+
+        const leanPanel =
+          '<div class="scores-panel" style="margin:0">' +
+            '<p class="panel-label">Campus Resilience Lean</p>' +
+            (al ? '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' + leanCards + '</div>' + leanText : '') +
+          '</div>'
+
+        return '<div id="insights-row">' + radarPanel + leanPanel + '</div>'
       })()}
 
       <div class="feed-section">
@@ -1711,6 +1825,96 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
       const countEl = document.getElementById('ratings-count')
       if (countEl) countEl.textContent = 'Based on ' + count + ' rating' + (count === 1 ? '' : 's')
     }
+
+    // ── Radar chart ────────────────────────────────────────
+    const _campusSlug    = ${JSON.stringify(campus.slug)}
+    let   _radarRmcw     = ${JSON.stringify(totalRatingsCount >= 3 ? { avgs: ratingAvgs, count: totalRatingsCount } : null)}
+    let   _radarWellbeing= ${JSON.stringify(wellbeingCount >= 3 ? { avgs: wellbeingAvgs, count: wellbeingCount } : null)}
+    let   _radarMode     = 'both'
+    let   _radarYear     = ''
+
+    function buildRadarSVG(l1, l2, mode) {
+      const N = 8, W = 320, H = 320, cx = W/2, cy = H/2, R = 105, LR = 138
+      const order  = ['physical','emotional','intellectual','social','spiritual','environmental','occupational','financial']
+      const labels = ['Physical','Emotional','Intellectual','Social','Spiritual','Environ.','Career','Financial']
+      function ang(i) { return (i / N) * Math.PI * 2 - Math.PI / 2 }
+      function ptStr(r, i) {
+        const a = ang(i)
+        return (cx + r * Math.cos(a)).toFixed(1) + ',' + (cy + r * Math.sin(a)).toFixed(1)
+      }
+      function ringPts(frac) {
+        return Array.from({length: N}, (_, i) => ptStr(R * frac, i)).join(' ')
+      }
+      let s = '<svg viewBox="0 0 320 320" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;overflow:visible">'
+      // Rings
+      for (let v = 2; v <= 10; v += 2) {
+        s += '<polygon points="' + ringPts(v/10) + '" fill="none" stroke="#e8e8e8" stroke-width="0.8"/>'
+        s += '<text x="' + (cx+3) + '" y="' + (cy - R*(v/10) - 3).toFixed(1) + '" font-size="7.5" fill="#c8c8c8" text-anchor="start">' + v + '</text>'
+      }
+      // Axes + labels
+      for (let i = 0; i < N; i++) {
+        const a = ang(i)
+        const ex = (cx + R * Math.cos(a)).toFixed(1), ey = (cy + R * Math.sin(a)).toFixed(1)
+        const lx = (cx + LR * Math.cos(a)).toFixed(1), ly = (cy + LR * Math.sin(a)).toFixed(1)
+        s += '<line x1="' + cx + '" y1="' + cy + '" x2="' + ex + '" y2="' + ey + '" stroke="#e8e8e8" stroke-width="0.8"/>'
+        const anch = Math.abs(Math.cos(a)) < 0.12 ? 'middle' : (Math.cos(a) > 0 ? 'start' : 'end')
+        const dyVal = Math.sin(a) > 0.5 ? '10' : (Math.sin(a) < -0.5 ? '0' : '4')
+        s += '<text x="' + lx + '" y="' + ly + '" dy="' + dyVal + '" font-size="9" fill="#555" text-anchor="' + anch + '" font-family="system-ui,sans-serif">' + labels[i] + '</text>'
+      }
+      // Data polygon helper
+      function poly(avgs, color, op) {
+        if (!avgs) return ''
+        const pts = order.map((d, i) => {
+          const v = avgs[d] != null ? Number(avgs[d]) : 0
+          const a = ang(i)
+          return (cx + (v/10)*R*Math.cos(a)).toFixed(1) + ',' + (cy + (v/10)*R*Math.sin(a)).toFixed(1)
+        }).join(' ')
+        return '<polygon points="' + pts + '" fill="' + color + '" fill-opacity="' + op + '" stroke="' + color + '" stroke-width="2.5" stroke-linejoin="round"/>'
+      }
+      if (mode !== 'students') s += poly(l1, '#ef4444', 0.13)
+      if (mode !== 'campus')   s += poly(l2, '#ca8a04', 0.13)
+      s += '</svg>'
+      return s
+    }
+
+    function updateRadar() {
+      const container = document.getElementById('radar-svg-container')
+      if (!container) return
+      const l1 = (_radarMode !== 'students' && _radarRmcw)      ? _radarRmcw.avgs      : null
+      const l2 = (_radarMode !== 'campus'   && _radarWellbeing) ? _radarWellbeing.avgs  : null
+      container.innerHTML = buildRadarSVG(l1, l2, _radarMode)
+    }
+
+    // Radar toggle buttons
+    document.querySelectorAll('.radar-toggle').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.radar-toggle').forEach(b => b.classList.remove('active'))
+        btn.classList.add('active')
+        _radarMode = btn.dataset.mode
+        updateRadar()
+      })
+    })
+
+    // Radar year filter
+    const radarYearSel = document.getElementById('radar-year-select')
+    if (radarYearSel) {
+      radarYearSel.addEventListener('change', async (e) => {
+        _radarYear = e.target.value
+        try {
+          const url = '/api/campus-radar?campus_id=' + encodeURIComponent(_campusId) +
+            '&campus_slug=' + encodeURIComponent(_campusSlug) +
+            (_radarYear ? '&year=' + encodeURIComponent(_radarYear) : '')
+          const resp = await fetch(url)
+          const d    = await resp.json()
+          _radarRmcw      = (d.rmcw      && d.rmcw.count >= 3)      ? d.rmcw      : null
+          _radarWellbeing = (d.wellbeing && d.wellbeing.count >= 3)  ? d.wellbeing : null
+          updateRadar()
+        } catch(err) { console.error('Radar year filter error', err) }
+      })
+    }
+
+    // Initial draw
+    updateRadar()
 
     // ── Subject filter ─────────────────────────────────────
     let _activeSubject = ''

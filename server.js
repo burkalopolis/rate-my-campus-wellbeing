@@ -162,7 +162,7 @@ app.get('/api/campus-radar', async (req, res) => {
     planningAvgs[dim] = vals.length > 0 ? Math.round(vals.reduce((a,b)=>a+b,0)/vals.length*10)/10 : null
   }
   const planningCount = (rmcwRows || []).length
-  const planning = planningCount >= 3
+  const planning = planningCount >= 1
     ? { ...planningAvgs, count: planningCount }
     : null
 
@@ -180,7 +180,7 @@ app.get('/api/campus-radar', async (req, res) => {
       q2 = q2.or(orParts.join(','))
       if (year) q2 = q2.eq('year_in_school', year)
       const { data: cmRows, error: cmErr } = await q2
-      if (!cmErr && cmRows && cmRows.length >= 3) {
+      if (!cmErr && cmRows && cmRows.length >= 1) {
         const qMap = ['q1','q2','q3','q4','q5','q6','q7','q8']
         const socialAvgs = {}
         DIMS.forEach((dim, i) => {
@@ -318,7 +318,7 @@ app.get('/campus/:slug', async (req, res) => {
         .from('assessments')
         .select('q1,q2,q3,q4,q5,q6,q7,q8')
         .or(orFilter)
-      if (!cmErr && cmRows && cmRows.length >= 3) {
+      if (!cmErr && cmRows && cmRows.length >= 1) {
         wellbeingCount = cmRows.length
         wellbeingAvgs = {}
         const qMap = ['q1','q2','q3','q4','q5','q6','q7','q8']
@@ -1683,7 +1683,7 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
         </div>
       </div>
 
-      ${!hasRatings && count === 0 ? `
+      ${!hasRatings && count === 0 && wellbeingCount < 1 ? `
       <div class="empty-state">
         <p>No reviews yet for ${campus.name}.</p>
         <a href="/submit?campus=${campus.slug}" class="btn-primary">
@@ -1707,9 +1707,8 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
 
       ${(() => {
         // ── Radar section (left) ───────────────────────────────
-        const rmcwCount = totalRatingsCount
-        const hasRmcw = rmcwCount >= 3
-        const hasWellbeing = wellbeingCount >= 3
+        const hasRmcw      = totalRatingsCount >= 1
+        const hasWellbeing = wellbeingCount >= 1
 
         const yearOpts = yearDist.map(y =>
           '<option value="' + y + '">' + y + ' year</option>'
@@ -1719,9 +1718,22 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
         if (!hasRmcw && !hasWellbeing) {
           radarBody = '<p style="font-size:13px;color:#888;padding:24px 0;text-align:center">Not enough data yet for this campus — check back as more students share their experience.</p>'
         } else {
+          // Per-layer partial-data note
           let note = ''
-          if (!hasRmcw)      note = '<p style="font-size:11px;color:#aaa;margin:6px 0 0">⚪ Campus Support data not yet available.</p>'
-          else if (!hasWellbeing) note = '<p style="font-size:11px;color:#aaa;margin:6px 0 0">⚪ Student Wellbeing data not yet available.</p>'
+          if (hasRmcw && !hasWellbeing) {
+            note = '<p style="font-size:11px;color:#aaa;margin:8px 0 0">Student Wellbeing data not yet available for this campus &nbsp;·&nbsp; <a href="https://campusmind.org/demo" target="_blank" rel="noopener" style="color:#ca8a04;text-decoration:none;font-weight:600">Be the first → campusmind.org/demo</a></p>'
+          } else if (!hasRmcw && hasWellbeing) {
+            note = '<p style="font-size:11px;color:#aaa;margin:8px 0 0">Campus Support data not yet available &nbsp;·&nbsp; <a href="/submit?campus=${campus.slug}" style="color:#ef4444;text-decoration:none;font-weight:600">Rate This Campus →</a></p>'
+          }
+
+          // Per-layer citations
+          const citRmcw     = '<span><span style="color:#ef4444;font-weight:700">●</span> Campus Support · Rate My Campus Wellbeing · ratemycampuswellbeing.com</span>'
+          const citWellbeing= '<span><span style="color:#ca8a04;font-weight:700">●</span> Student Wellbeing · CampusMind · campusmind.org/demo</span>'
+          const citations   = '<div style="display:flex;gap:16px;margin-top:10px;flex-wrap:wrap;font-size:10px;color:#aaa;line-height:1.6">' +
+            (hasRmcw ? citRmcw : '') +
+            (hasWellbeing ? citWellbeing : '') +
+            '</div>'
+
           radarBody =
             '<select id="radar-year-select" class="radar-year-sel">' +
               '<option value="">All Years</option>' + yearOpts +
@@ -1733,10 +1745,7 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
             '</div>' +
             '<div id="radar-svg-container" style="min-height:200px"></div>' +
             note +
-            '<div style="display:flex;gap:16px;margin-top:10px;flex-wrap:wrap;font-size:10px;color:#aaa;line-height:1.6">' +
-              '<span><span style="color:#ef4444;font-weight:700">●</span> Campus Support · Rate My Campus Wellbeing · ratemycampuswellbeing.com</span>' +
-              '<span><span style="color:#ca8a04;font-weight:700">●</span> Student Wellbeing · CampusMind · campusmind.org/demo</span>' +
-            '</div>'
+            citations
         }
 
         const radarPanel =
@@ -1876,8 +1885,8 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
     // ── Radar chart ────────────────────────────────────────
     const _campusSlug    = ${JSON.stringify(campus.slug)}
     const _campusName    = ${JSON.stringify(campus.name)}
-    let   _radarPlanning = ${JSON.stringify(totalRatingsCount >= 3 ? { ...ratingAvgs, count: totalRatingsCount } : null)}
-    let   _radarSocial   = ${JSON.stringify(wellbeingCount >= 3 ? { ...wellbeingAvgs, count: wellbeingCount } : null)}
+    let   _radarPlanning = ${JSON.stringify(totalRatingsCount >= 1 ? { ...ratingAvgs, count: totalRatingsCount } : null)}
+    let   _radarSocial   = ${JSON.stringify(wellbeingCount >= 1 ? { ...wellbeingAvgs, count: wellbeingCount } : null)}
     let   _radarMode     = 'both'
     let   _radarYear     = ''
 

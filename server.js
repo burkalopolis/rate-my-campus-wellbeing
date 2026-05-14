@@ -178,23 +178,31 @@ app.get('/campus/:slug', async (req, res) => {
 
 // ── Receipt page ────────────────────────────────────────────
 app.get('/receipt', async (req, res) => {
-  const { campus, campus_id, campus_slug, dimension, archetype } = req.query
-  res.send(renderReceipt(campus, campus_id, campus_slug, dimension, archetype))
+  const { campus, campus_id, campus_slug, submitter_id, dimension, archetype } = req.query
+  res.send(renderReceipt(campus, campus_id, campus_slug, submitter_id, dimension, archetype))
 })
 
 // ── POST /api/subscribe ─────────────────────────────────────
 app.post('/api/subscribe', upload.none(), async (req, res) => {
-  const { email, campus_id, frequency, wants_summary } = req.body
+  const { email, campus_id, submitter_id, frequency, wants_summary } = req.body
   if (!email || !email.includes('@')) {
     return res.status(400).json({ error: 'Valid email required' })
   }
   try {
-    const cleanEmail = email.trim().toLowerCase()
-    const wantsBool  = wants_summary === 'true' || wants_summary === true
-    const campusUUID = campus_id && campus_id.match(/^[0-9a-f-]{36}$/) ? campus_id : null
+    const cleanEmail    = email.trim().toLowerCase()
+    const wantsBool     = wants_summary === 'true' || wants_summary === true
+    const isUUID        = v => v && /^[0-9a-f-]{36}$/.test(v)
+    const campusUUID    = isUUID(campus_id)    ? campus_id    : null
+    const submitterUUID = isUUID(submitter_id) ? submitter_id : null
     const { error: insErr } = await supabaseAdmin
       .from('email_subscriptions')
-      .insert({ email: cleanEmail, campus_id: campusUUID, frequency: frequency || null, wants_summary: wantsBool })
+      .insert({
+        email:        cleanEmail,
+        campus_id:    campusUUID,
+        submitter_id: submitterUUID,
+        frequency:    frequency || null,
+        wants_summary: wantsBool
+      })
     if (insErr) throw new Error(insErr.message)
     res.json({ success: true })
   } catch (err) {
@@ -363,6 +371,7 @@ app.post('/api/submit', submitLimiter, upload.single('image'), async (req, res) 
     res.json({
       success: true,
       submission_id: submission.id,
+      submitter_id: submitter.id,
       archetype_derived: submission.archetype_derived
     })
 
@@ -1160,11 +1169,12 @@ function renderSubmitFlow(campus, allCampuses = []) {
 
         if (data.success) {
           window.location.href = '/receipt' +
-            '?campus='      + encodeURIComponent(state.campus_name) +
-            '&campus_id='   + encodeURIComponent(state.campus_id) +
-            '&campus_slug=' + encodeURIComponent(state.campus_slug) +
-            '&dimension='   + encodeURIComponent(state.dimension_tag) +
-            '&archetype='   + encodeURIComponent(data.archetype_derived || '')
+            '?campus='        + encodeURIComponent(state.campus_name) +
+            '&campus_id='     + encodeURIComponent(state.campus_id) +
+            '&campus_slug='   + encodeURIComponent(state.campus_slug) +
+            '&submitter_id='  + encodeURIComponent(data.submitter_id || '') +
+            '&dimension='     + encodeURIComponent(state.dimension_tag) +
+            '&archetype='     + encodeURIComponent(data.archetype_derived || '')
         } else {
           alert('Something went wrong: ' + (data.error || 'Unknown error'))
           goToStep(3)
@@ -1179,7 +1189,7 @@ function renderSubmitFlow(campus, allCampuses = []) {
 </html>`
 }
 
-function renderReceipt(campusName, campusId, campusSlug, dimension, archetype) {
+function renderReceipt(campusName, campusId, campusSlug, submitterId, dimension, archetype) {
   const campusHref = campusSlug ? `/campus/${campusSlug}` : '/'
 
   return `<!DOCTYPE html>
@@ -1247,7 +1257,8 @@ function renderReceipt(campusName, campusId, campusSlug, dimension, archetype) {
   </div>
 
   <script>
-    const _campusId = ${JSON.stringify(campusId || null)}
+    const _campusId    = ${JSON.stringify(campusId    || null)}
+    const _submitterId = ${JSON.stringify(submitterId || null)}
     let _freq = null
 
     document.querySelectorAll('.freq-pill').forEach(btn => {
@@ -1277,25 +1288,31 @@ function renderReceipt(campusName, campusId, campusSlug, dimension, archetype) {
       try {
         const fd = new FormData()
         fd.append('email', email)
-        if (_campusId) fd.append('campus_id', _campusId)
-        if (_freq)     fd.append('frequency',  _freq)
+        if (_campusId)    fd.append('campus_id',    _campusId)
+        if (_submitterId) fd.append('submitter_id', _submitterId)
+        fd.append('frequency',    _freq    || '')
         fd.append('wants_summary', wants)
         const r = await fetch('/api/subscribe', { method: 'POST', body: fd })
         const d = await r.json()
         if (d.success) {
-          btn.textContent = 'Subscribed ✓'
-          status.textContent = "You're on the list."
-          status.className = 'subscribe-status success'
+          btn.replaceWith((() => {
+            const msg = document.createElement('p')
+            msg.className = 'subscribe-status success'
+            msg.style.cssText = 'font-size:15px;font-weight:700;margin:0;'
+            msg.textContent = "You\u2019re in \u2014 we\u2019ll be in touch."
+            return msg
+          })())
+          status.textContent = ''
         } else {
           btn.disabled = false
           btn.textContent = 'Subscribe'
-          status.textContent = 'Something went wrong. Try again.'
+          status.textContent = 'Something went wrong \u2014 try again.'
           status.className = 'subscribe-status error'
         }
       } catch {
         btn.disabled = false
         btn.textContent = 'Subscribe'
-        status.textContent = 'Network error. Try again.'
+        status.textContent = 'Something went wrong \u2014 try again.'
         status.className = 'subscribe-status error'
       }
     })

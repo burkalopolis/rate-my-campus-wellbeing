@@ -667,6 +667,39 @@ app.post('/api/burkmin/restore/:id', requireAdminApi, async (req, res) => {
   res.json({ success: true })
 })
 
+// ── GET /sitemap.xml ────────────────────────────────────────
+app.get('/sitemap.xml', async (req, res) => {
+  const { data: campuses } = await supabase
+    .from('campuses')
+    .select('slug')
+    .eq('active', true)
+    .order('name')
+
+  const base = 'https://ratemycampuswellbeing.com'
+  const today = new Date().toISOString().split('T')[0]
+
+  const staticUrls = ['/', '/submit'].map(path => `
+  <url>
+    <loc>${base}${path}</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>${path === '/' ? 'daily' : 'monthly'}</changefreq>
+    <priority>${path === '/' ? '1.0' : '0.7'}</priority>
+  </url>`).join('')
+
+  const campusUrls = (campuses || []).map(c => `
+  <url>
+    <loc>${base}/campus/${c.slug}</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>`).join('')
+
+  res.set('Content-Type', 'application/xml')
+  res.send(`<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${staticUrls}${campusUrls}
+</urlset>`)
+})
+
 // ── GET /api/campuses ───────────────────────────────────────
 app.get('/api/campuses', async (req, res) => {
   const { data, error } = await supabase
@@ -717,6 +750,7 @@ function renderLanding(uc, csu, other) {
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="Rate My Campus Wellbeing">
   <meta name="twitter:description" content="Anonymous student wellbeing ratings for UC and CSU campuses.">
+  <meta name="robots" content="index, follow">
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
@@ -817,7 +851,9 @@ function renderSubmitFlow(campus, allCampuses = []) {
   <meta property="og:description" content="Anonymously rate your campus wellbeing experience. Takes 2 minutes.">
   <meta property="og:site_name" content="Rate My Campus Wellbeing">
   <meta name="twitter:card" content="summary">
+  <meta name="description" content="Anonymously rate your campus wellbeing experience. Share how your UC or CSU campus supports student mental health, social connection, and more.">
   <meta name="twitter:title" content="Share Your Experience — Rate My Campus Wellbeing">
+  <meta name="robots" content="index, follow">
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
@@ -1491,6 +1527,7 @@ function renderReceipt(campusName, campusId, campusSlug, submitterId, dimension,
   <meta property="og:title" content="Thank You — Rate My Campus Wellbeing">
   <meta property="og:site_name" content="Rate My Campus Wellbeing">
   <meta name="twitter:card" content="summary">
+  <meta name="robots" content="noindex, nofollow">
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
@@ -1747,6 +1784,7 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="${campus.name} Wellbeing — Rate My Campus Wellbeing">
   <meta name="twitter:description" content="Student wellbeing scores and reviews for ${campus.name}.">
+  <meta name="robots" content="index, follow">
   <link rel="stylesheet" href="/style.css">
   <style>
     .year-pill{padding:6px 14px;border-radius:20px;border:1.5px solid #ccc;background:#fff;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s}
@@ -2111,6 +2149,7 @@ function renderAdminLogin(errorMsg) {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Admin Login — RMCW</title>
+  <meta name="robots" content="noindex, nofollow">
   <link rel="stylesheet" href="/style.css">
   <style>
     body{display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f8f9fa;margin:0}
@@ -2253,6 +2292,7 @@ function renderAdminDashboard(normal, archived, deleted, total) {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Admin Dashboard — RMCW</title>
+  <meta name="robots" content="noindex, nofollow">
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>

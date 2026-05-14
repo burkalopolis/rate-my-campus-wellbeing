@@ -881,7 +881,7 @@ function renderSubmitFlow(campus, allCampuses = []) {
         </button>
         <button id="na-modal-continue"
           style="padding:13px 0;border-radius:10px;border:2px solid #ccc;background:#fff;color:#555;font-size:15px;font-weight:600;cursor:pointer">
-          Continue Anyway
+          Looks Good — Continue
         </button>
       </div>
     </div>
@@ -1108,10 +1108,10 @@ function renderSubmitFlow(campus, allCampuses = []) {
       }
       // Count sliders still at 0 (N/A)
       const naCount = RATING_DIMS.filter(d => state.ratings[d] === 0).length
-      if (naCount > 2) {
+      if (naCount >= 1) {
         const bodyEl = document.getElementById('na-modal-body')
         bodyEl.textContent =
-          'You marked N/A for ' + naCount + ' areas. N/A means the service didn\u2019t apply to your experience \u2014 if you simply didn\u2019t use a service, a low rating may be more accurate than N/A. Would you like to go back and review, or continue with your current ratings?'
+          'You left one or more areas marked N/A. N/A means this service didn\u2019t apply to your experience \u2014 that\u2019s completely fine. Just want to make sure that\u2019s intentional.'
         document.getElementById('na-modal-overlay').style.display = 'flex'
         return
       }

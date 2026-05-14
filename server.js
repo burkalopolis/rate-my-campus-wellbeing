@@ -272,7 +272,7 @@ app.post('/api/submit', submitLimiter, upload.single('image'), async (req, res) 
 
   try {
     // 1. Create submitter record
-    const { data: submitter, error: submitterError } = await supabase
+    const { data: submitter, error: submitterError } = await supabaseAdmin
       .from('submitters')
       .insert({
         community_tags: Array.isArray(community_tags)
@@ -284,7 +284,10 @@ app.post('/api/submit', submitLimiter, upload.single('image'), async (req, res) 
       .select('id')
       .single()
 
-    if (submitterError) throw submitterError
+    if (submitterError) {
+      console.error('Supabase submitterError full:', JSON.stringify(submitterError, null, 2))
+      throw submitterError
+    }
 
     // 2. Create submission record
     // Schema: campus_id, submitter_id, subject_tag, dimension_tag, archetype_derived (trigger),

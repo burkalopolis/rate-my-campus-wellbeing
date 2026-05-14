@@ -501,6 +501,12 @@ app.get('/burkmin/dashboard', requireAdminSession, async (req, res) => {
 
 // ── POST /api/submit ────────────────────────────────────────
 app.post('/api/submit', submitLimiter, async (req, res) => {
+  // Honeypot — bots fill hidden fields; real users never do
+  if (req.body?.website) {
+    console.log('Honeypot triggered')
+    return res.json({ success: true })
+  }
+
   const {
     campus_id,
     community_tags,
@@ -970,6 +976,9 @@ function renderSubmitFlow(campus, allCampuses = []) {
           <span style="font-size:11px;color:#888;white-space:normal;line-height:1.4">I spot patterns and anticipate what's coming</span>
         </button>
       </div>
+
+      <input type="text" name="website" id="honeypot-website" tabindex="-1" autocomplete="off"
+        style="position:absolute;left:-9999px;opacity:0;height:0">
 
       <button class="btn-primary step-next" data-next="2" id="step1-next" disabled>
         Continue →

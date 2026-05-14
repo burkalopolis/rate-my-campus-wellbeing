@@ -4,6 +4,7 @@
 // ============================================================
 
 import express from 'express'
+import session from 'express-session'
 import rateLimit from 'express-rate-limit'
 import { createClient } from '@supabase/supabase-js'
 import multer from 'multer'
@@ -44,6 +45,16 @@ try {
 // ── Express setup ───────────────────────────────────────────
 const app = express()
 app.set("trust proxy", 1)
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'rmcw-fallback-secret',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 8 * 60 * 60 * 1000
+  }
+}))
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 app.use(express.static(path.join(__dirname, 'public')))
@@ -66,14 +77,14 @@ const submitLimiter = rateLimit({
   message: { error: 'Too many submissions. Please try again later.' }
 })
 
-// ── Simple admin auth middleware ────────────────────────────
-function requireAdmin(req, res, next) {
-  const password = req.headers['x-admin-password'] || req.query.password
-  if (password === process.env.ADMIN_PASSWORD) {
-    next()
-  } else {
-    res.status(401).json({ error: 'Unauthorized' })
-  }
+// ── Session-based admin auth middlewares ─────────────────────
+function requireAdminSession(req, res, next) {
+  if (req.session?.admin === true) return next()
+  res.redirect('/burkmin')
+}
+function requireAdminApi(req, res, next) {
+  if (req.session?.admin === true) return next()
+  res.status(401).json({ error: 'Unauthorized' })
 }
 
 // ============================================================
@@ -387,8 +398,32 @@ app.post('/api/subscribe', upload.none(), async (req, res) => {
   }
 })
 
-// ── Admin queue ─────────────────────────────────────────────
-app.get('/admin', requireAdmin, async (req, res) => {
+// ── /admin → 404 ────────────────────────────────────────────
+app.get('/admin', (req, res) => res.status(404).send(render404()))
+app.get('/admin/*', (req, res) => res.status(404).send(render404()))
+
+// ── /burkmin — login page ────────────────────────────────────
+app.get('/burkmin', (req, res) => {
+  if (req.session?.admin) return res.redirect('/burkmin/dashboard')
+  const err = req.query.error ? 'Incorrect password. Try again.' : ''
+  res.send(renderAdminLogin(err))
+})
+
+app.post('/burkmin/login', (req, res) => {
+  const { password } = req.body
+  if (password && password === process.env.ADMIN_PASSWORD) {
+    req.session.admin = true
+    return res.redirect('/burkmin/dashboard')
+  }
+  res.redirect('/burkmin?error=1')
+})
+
+app.get('/burkmin/logout', (req, res) => {
+  req.session.destroy(() => res.redirect('/burkmin'))
+})
+
+// ── /burkmin/dashboard ───────────────────────────────────────
+app.get('/burkmin/dashboard', requireAdminSession, async (req, res) => {
   const { data: all } = await supabaseAdmin
     .from('submissions')
     .select(`
@@ -402,8 +437,12 @@ app.get('/admin', requireAdmin, async (req, res) => {
       major,
       communities,
       created_at,
-      flagged,
-      flag_reason,
+      archived,
+      deleted,
+      feedback_flagged,
+      feedback_flag_reason,
+      guidance_flagged,
+      guidance_flag_reason,
       rating_physical,
       rating_emotional,
       rating_intellectual,
@@ -414,13 +453,13 @@ app.get('/admin', requireAdmin, async (req, res) => {
       rating_financial,
       campuses ( name, slug )
     `)
-    .eq('deleted', false)
     .order('created_at', { ascending: false })
 
-  const rows = all || []
-  const normal  = rows.filter(r => !r.flagged)
-  const flagged = rows.filter(r =>  r.flagged)
-  res.send(renderAdminQueue(normal, flagged, rows.length))
+  const rows     = all || []
+  const normal   = rows.filter(r => !r.deleted && !r.archived)
+  const archived = rows.filter(r => !r.deleted &&  r.archived)
+  const deleted  = rows.filter(r =>  r.deleted)
+  res.send(renderAdminDashboard(normal, archived, deleted, rows.length))
 })
 
 // ============================================================
@@ -560,60 +599,70 @@ app.post('/api/submit', submitLimiter, upload.single('image'), async (req, res) 
   }
 })
 
-// ── POST /api/admin/approve/:id ─────────────────────────────
-app.post('/api/admin/approve/:id', requireAdmin, async (req, res) => {
-  const { id } = req.params
+// ── /api/burkmin/* — all require active session ──────────────
 
-  const { data: submission, error } = await supabaseAdmin
-    .from('submissions')
-    .update({ approved: true, approved_at: new Date().toISOString() })
-    .eq('id', id)
-    .select('campus_id')
-    .single()
-
-  if (error) return res.status(500).json({ error: error.message })
-
-  // Refresh campus scores after approval
-  await supabaseAdmin.rpc('fn_refresh_campus_scores',
-    { p_campus_id: submission.campus_id })
-  await supabaseAdmin.rpc('fn_refresh_archetype_scores',
-    { p_campus_id: submission.campus_id })
-
-  res.json({ success: true })
-})
-
-// ── POST /api/admin/flag/:id ────────────────────────────────
-app.post('/api/admin/flag/:id', requireAdmin, async (req, res) => {
-  const { id } = req.params
+app.post('/api/burkmin/flag-feedback/:id', requireAdminApi, async (req, res) => {
   const { reason } = req.body
-
-  const { error } = await supabaseAdmin
-    .from('submissions')
-    .update({ flagged: true, flag_reason: reason || 'No reason given' })
-    .eq('id', id)
-
+  const { error } = await supabaseAdmin.from('submissions')
+    .update({ feedback_flagged: true, feedback_flag_reason: reason || 'Flagged by admin' })
+    .eq('id', req.params.id)
   if (error) return res.status(500).json({ error: error.message })
   res.json({ success: true })
 })
 
-// ── POST /api/admin/unflag/:id ─────────────────────────────
-app.post('/api/admin/unflag/:id', requireAdmin, async (req, res) => {
-  const { id } = req.params
-  const { error } = await supabaseAdmin
-    .from('submissions')
-    .update({ flagged: false, flag_reason: null })
-    .eq('id', id)
+app.post('/api/burkmin/unflag-feedback/:id', requireAdminApi, async (req, res) => {
+  const { error } = await supabaseAdmin.from('submissions')
+    .update({ feedback_flagged: false, feedback_flag_reason: null })
+    .eq('id', req.params.id)
   if (error) return res.status(500).json({ error: error.message })
   res.json({ success: true })
 })
 
-// ── POST /api/admin/delete/:id ─────────────────────────────
-app.post("/api/admin/delete/:id", requireAdmin, async (req, res) => {
-  const { id } = req.params
-  const { error } = await supabaseAdmin
-    .from("submissions")
+app.post('/api/burkmin/flag-guidance/:id', requireAdminApi, async (req, res) => {
+  const { reason } = req.body
+  const { error } = await supabaseAdmin.from('submissions')
+    .update({ guidance_flagged: true, guidance_flag_reason: reason || 'Flagged by admin' })
+    .eq('id', req.params.id)
+  if (error) return res.status(500).json({ error: error.message })
+  res.json({ success: true })
+})
+
+app.post('/api/burkmin/unflag-guidance/:id', requireAdminApi, async (req, res) => {
+  const { error } = await supabaseAdmin.from('submissions')
+    .update({ guidance_flagged: false, guidance_flag_reason: null })
+    .eq('id', req.params.id)
+  if (error) return res.status(500).json({ error: error.message })
+  res.json({ success: true })
+})
+
+app.post('/api/burkmin/archive/:id', requireAdminApi, async (req, res) => {
+  const { error } = await supabaseAdmin.from('submissions')
+    .update({ archived: true })
+    .eq('id', req.params.id)
+  if (error) return res.status(500).json({ error: error.message })
+  res.json({ success: true })
+})
+
+app.post('/api/burkmin/unarchive/:id', requireAdminApi, async (req, res) => {
+  const { error } = await supabaseAdmin.from('submissions')
+    .update({ archived: false })
+    .eq('id', req.params.id)
+  if (error) return res.status(500).json({ error: error.message })
+  res.json({ success: true })
+})
+
+app.post('/api/burkmin/delete/:id', requireAdminApi, async (req, res) => {
+  const { error } = await supabaseAdmin.from('submissions')
     .update({ deleted: true })
-    .eq("id", id)
+    .eq('id', req.params.id)
+  if (error) return res.status(500).json({ error: error.message })
+  res.json({ success: true })
+})
+
+app.post('/api/burkmin/restore/:id', requireAdminApi, async (req, res) => {
+  const { error } = await supabaseAdmin.from('submissions')
+    .update({ deleted: false })
+    .eq('id', req.params.id)
   if (error) return res.status(500).json({ error: error.message })
   res.json({ success: true })
 })
@@ -2055,7 +2104,40 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
 </html>`
 }
 
-function renderAdminQueue(normal, flagged, total) {
+function renderAdminLogin(errorMsg) {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Login — RMCW</title>
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    body{display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f8f9fa;margin:0}
+    .login-card{background:#fff;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,.08);padding:40px 36px;width:100%;max-width:360px}
+    .login-card h1{font-size:22px;font-weight:700;margin:0 0 6px;color:#1a1a2e}
+    .login-card p{font-size:13px;color:#888;margin:0 0 24px}
+    .login-card input{width:100%;box-sizing:border-box;padding:10px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:14px;margin-bottom:12px}
+    .login-card input:focus{outline:none;border-color:#3a86ff}
+    .login-card button{width:100%;padding:11px;background:#1a1a2e;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer}
+    .login-error{color:#dc2626;font-size:13px;margin-bottom:12px;background:#fee2e2;padding:8px 12px;border-radius:6px}
+  </style>
+</head>
+<body>
+  <div class="login-card">
+    <h1>RMCW Admin</h1>
+    <p>Enter your admin password to continue.</p>
+    ${errorMsg ? '<p class="login-error">' + escapeHtml(errorMsg) + '</p>' : ''}
+    <form method="POST" action="/burkmin/login">
+      <input type="password" name="password" placeholder="Password" autofocus autocomplete="current-password">
+      <button type="submit">Sign In →</button>
+    </form>
+  </div>
+</body>
+</html>`
+}
+
+function renderAdminDashboard(normal, archived, deleted, total) {
   const RATING_KEYS = [
     ['rating_physical','Phy'],['rating_emotional','Emo'],['rating_intellectual','Int'],
     ['rating_social','Soc'],['rating_spiritual','Spi'],['rating_environmental','Env'],
@@ -2070,55 +2152,107 @@ function renderAdminQueue(normal, flagged, total) {
     return '#4ade80'
   }
 
-  function buildCard(s, isFlagged) {
+  function inlineFlag(type, id, flagged, reason) {
+    const btnId   = 'flag-btn-'  + type + '-' + id
+    const formId  = 'flag-form-' + type + '-' + id
+    const inputId = 'flag-inp-'  + type + '-' + id
+    if (flagged) {
+      return [
+        '<div style="background:#fef3c7;border-radius:6px;padding:6px 10px;margin:4px 0 6px;display:flex;align-items:flex-start;gap:8px">',
+        '<span style="font-size:11px;color:#92400e;flex:1">⚑ Flagged' + (reason ? ': ' + escapeHtml(reason) : '') + '</span>',
+        '<button style="padding:2px 8px;border-radius:5px;border:1.5px solid #16a34a;background:#f0fdf4;color:#16a34a;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap" ',
+        'onclick="doUnflag(\u0027' + type + '\u0027,\u0027' + id + '\u0027)">↩ Unflag</button>',
+        '</div>'
+      ].join('')
+    }
+    return [
+      '<div id="' + btnId + '" style="display:inline-block;margin:4px 0 2px">',
+      '<button class="btn-flag" style="font-size:11px;padding:3px 9px" ',
+      'onclick="showFlagForm(\u0027' + type + '\u0027,\u0027' + id + '\u0027)">⚑ Flag ' + (type === 'fb' ? 'feedback' : 'guidance') + '</button>',
+      '</div>',
+      '<span id="' + formId + '" style="display:none;align-items:center;gap:4px;margin:4px 0 2px">',
+      '<input id="' + inputId + '" type="text" placeholder="Reason…" ',
+      'style="padding:3px 8px;border:1.5px solid #f59e0b;border-radius:6px;font-size:12px;width:160px">',
+      '<button style="padding:3px 9px;border-radius:5px;border:none;background:#f59e0b;color:#fff;font-size:11px;font-weight:600;cursor:pointer" ',
+      'onclick="confirmFlag(\u0027' + type + '\u0027,\u0027' + id + '\u0027)">OK</button>',
+      '<button style="padding:3px 7px;border-radius:5px;border:1.5px solid #ccc;background:#fff;color:#555;font-size:11px;cursor:pointer" ',
+      'onclick="cancelFlag(\u0027' + type + '\u0027,\u0027' + id + '\u0027)">✕</button>',
+      '</span>'
+    ].join('')
+  }
+
+  function buildCard(s, mode) {
     const communityTags = s.communities ? s.communities.split(',').map(t => t.trim()).filter(Boolean) : []
     const date = new Date(s.created_at).toLocaleDateString('en-US', {
       month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/Los_Angeles'
     })
     const ratingPills = RATING_KEYS.map(([col, label]) => {
       const v = s[col]
-      return '<span style="display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:600;background:' +
+      return '<span style="display:inline-flex;align-items:center;gap:2px;padding:2px 6px;border-radius:10px;font-size:11px;font-weight:600;background:' +
         ratingColor(v) + ';color:#1a1a2e">' + label + (v != null ? ':' + v : ':–') + '</span>'
     }).join('')
 
-    const parts = [
-      '<div class="admin-row" id="row-' + s.id + '" data-campus="' +
-        escapeHtml((s.campuses?.name || '').toLowerCase()) + '" data-flagged="' + (isFlagged ? '1' : '0') + '">',
+    const fbBlock = s.feedback_text ? [
+      '<div style="margin:6px 0 4px;padding:8px 10px;background:' + (s.feedback_flagged ? '#fffbeb' : '#f9fafb') + ';border-radius:6px;border:1px solid ' + (s.feedback_flagged ? '#fde68a' : '#e5e7eb') + '">',
+      '<p style="margin:0 0 4px;font-size:13px;color:#1a1a2e">' + escapeHtml(s.feedback_text) + '</p>',
+      mode !== 'deleted' ? inlineFlag('fb', s.id, s.feedback_flagged, s.feedback_flag_reason) : '',
+      '</div>'
+    ].join('') : ''
+
+    const guBlock = s.guidance_text ? [
+      '<div style="margin:4px 0 4px;padding:8px 10px;background:' + (s.guidance_flagged ? '#fffbeb' : '#f9fafb') + ';border-radius:6px;border:1px solid ' + (s.guidance_flagged ? '#fde68a' : '#e5e7eb') + '">',
+      '<p style="margin:0 0 4px;font-size:13px;color:#6b7280;font-style:italic">' + escapeHtml(s.guidance_text) + '</p>',
+      mode !== 'deleted' ? inlineFlag('gu', s.id, s.guidance_flagged, s.guidance_flag_reason) : '',
+      '</div>'
+    ].join('') : ''
+
+    let actions = ''
+    if (mode === 'normal') {
+      actions = [
+        '<button style="padding:5px 12px;border-radius:6px;border:1.5px solid #6b7280;background:#f3f4f6;color:#374151;font-size:12px;font-weight:600;cursor:pointer" ',
+        'onclick="doArchive(\u0027' + s.id + '\u0027)">🗃 Archive</button>',
+        '<button class="btn-delete" onclick="doDelete(\u0027' + s.id + '\u0027)">🗑 Delete</button>'
+      ].join('')
+    } else if (mode === 'archived') {
+      actions = [
+        '<button style="padding:5px 12px;border-radius:6px;border:1.5px solid #16a34a;background:#f0fdf4;color:#16a34a;font-size:12px;font-weight:600;cursor:pointer" ',
+        'onclick="doUnarchive(\u0027' + s.id + '\u0027)">↩ Unarchive</button>',
+        '<button class="btn-delete" onclick="doDelete(\u0027' + s.id + '\u0027)">🗑 Delete</button>'
+      ].join('')
+    } else {
+      actions = [
+        '<button style="padding:5px 12px;border-radius:6px;border:1.5px solid #16a34a;background:#f0fdf4;color:#16a34a;font-size:12px;font-weight:600;cursor:pointer" ',
+        'onclick="doRestore(\u0027' + s.id + '\u0027)">↩ Restore</button>'
+      ].join('')
+    }
+
+    return [
+      '<div class="admin-row" id="row-' + s.id + '" data-campus="' + escapeHtml((s.campuses?.name || '').toLowerCase()) + '">',
       '<div class="admin-meta" style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:6px">',
       '<strong style="font-size:14px">' + escapeHtml(s.campuses?.name || 'Unknown') + '</strong>',
       s.year_in_school ? '<span class="meta-pill">' + escapeHtml(s.year_in_school) + ' year</span>' : '',
-      communityTags.length ? communityTags.map(t => '<span class="meta-pill">' + escapeHtml(t) + '</span>').join('') : '',
+      communityTags.map(t => '<span class="meta-pill">' + escapeHtml(t) + '</span>').join(''),
       s.subject_tag ? '<span class="meta-pill" style="background:#dbeafe;color:#1e40af">' + escapeHtml(s.subject_tag) + '</span>' : '',
       '<span class="meta-date" style="margin-left:auto">' + date + '</span>',
       '</div>',
-      '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px">' + ratingPills + '</div>',
-      s.feedback_text ? '<p class="admin-text" style="margin:0 0 4px">' + escapeHtml(s.feedback_text) + '</p>' : '',
-      s.guidance_text  ? '<p class="admin-text" style="margin:0 0 4px;color:#6b7280;font-style:italic">' + escapeHtml(s.guidance_text) + '</p>' : '',
-      isFlagged && s.flag_reason ? '<p style="font-size:11px;color:#b45309;background:#fef3c7;padding:4px 8px;border-radius:6px;margin:4px 0">Flag reason: ' + escapeHtml(s.flag_reason) + '</p>' : '',
-      '<div class="admin-actions" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px">',
-      '<button class="btn-delete" onclick="doDelete(\u0027' + s.id + '\u0027)">🗑 Delete</button>',
-      isFlagged
-        ? '<button style="padding:5px 12px;border-radius:6px;border:1.5px solid #16a34a;background:#f0fdf4;color:#16a34a;font-size:12px;font-weight:600;cursor:pointer" onclick="doUnflag(\u0027' + s.id + '\u0027)">↩ Unflag</button>'
-        : '<button class="btn-flag" onclick="showFlagForm(\u0027' + s.id + '\u0027)">⚑ Flag</button>',
-      '<span id="flag-form-' + s.id + '" style="display:none">',
-      '<input id="flag-input-' + s.id + '" type="text" placeholder="Flag reason…" style="padding:4px 8px;border:1.5px solid #f59e0b;border-radius:6px;font-size:12px;width:180px">',
-      '<button style="padding:5px 10px;border-radius:6px;border:none;background:#f59e0b;color:#fff;font-size:12px;font-weight:600;cursor:pointer;margin-left:4px" onclick="confirmFlag(\u0027' + s.id + '\u0027)">Confirm</button>',
-      '<button style="padding:5px 10px;border-radius:6px;border:1.5px solid #ccc;background:#fff;color:#555;font-size:12px;cursor:pointer;margin-left:2px" onclick="cancelFlag(\u0027' + s.id + '\u0027)">✕</button>',
-      '</span>',
-      '</div></div>'
-    ]
-    return parts.join('')
+      '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px">' + ratingPills + '</div>',
+      fbBlock,
+      guBlock,
+      '<div class="admin-actions" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px">' + actions + '</div>',
+      '</div>'
+    ].join('')
   }
 
-  const normalHtml  = normal.length  === 0 ? '<p class="empty-state" style="padding:16px 0">No submissions yet.</p>'        : normal.map(s  => buildCard(s, false)).join('')
-  const flaggedHtml = flagged.length === 0 ? '<p class="empty-state" style="padding:16px 0">No flagged submissions.</p>' : flagged.map(s => buildCard(s, true)).join('')
+  const normalHtml   = normal.length   === 0 ? '<p class="empty-state" style="padding:16px 0">No submissions yet.</p>'   : normal.map(s   => buildCard(s, 'normal')).join('')
+  const archivedHtml = archived.length === 0 ? '<p class="empty-state" style="padding:16px 0">No archived submissions.</p>' : archived.map(s => buildCard(s, 'archived')).join('')
+  const deletedHtml  = deleted.length  === 0 ? '<p class="empty-state" style="padding:16px 0">No deleted submissions.</p>'  : deleted.map(s  => buildCard(s, 'deleted')).join('')
 
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin — Rate My Campus Wellbeing</title>
+  <title>Admin Dashboard — RMCW</title>
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
@@ -2126,6 +2260,7 @@ function renderAdminQueue(normal, flagged, total) {
     <header class="nav">
       <span class="nav-logo">RMCW Admin</span>
       <span class="admin-count">${total} submission${total === 1 ? '' : 's'}</span>
+      <a href="/burkmin/logout" style="margin-left:auto;font-size:13px;color:#888;text-decoration:none;padding:5px 12px;border:1.5px solid #e5e7eb;border-radius:6px">Log out</a>
     </header>
     <main class="admin-main">
 
@@ -2140,17 +2275,24 @@ function renderAdminQueue(normal, flagged, total) {
         <div id="all-submissions">${normalHtml}</div>
       </div>
 
-      <div class="admin-section" style="margin-top:32px">
-        <h3 class="admin-section-title" style="color:#b45309">Flagged (${flagged.length})</h3>
-        <div id="flagged-submissions">${flaggedHtml}</div>
-      </div>
+      <details style="margin-top:28px" ${archived.length > 0 ? '' : ''}>
+        <summary style="cursor:pointer;font-size:15px;font-weight:700;color:#6b7280;padding:8px 0;list-style:none;display:flex;align-items:center;gap:8px">
+          <span>▶</span> Archived (${archived.length})
+        </summary>
+        <div id="archived-submissions" style="margin-top:12px">${archivedHtml}</div>
+      </details>
+
+      <details style="margin-top:16px">
+        <summary style="cursor:pointer;font-size:15px;font-weight:700;color:#dc2626;padding:8px 0;list-style:none;display:flex;align-items:center;gap:8px">
+          <span>▶</span> Deleted (${deleted.length})
+        </summary>
+        <div id="deleted-submissions" style="margin-top:12px">${deletedHtml}</div>
+      </details>
 
     </main>
   </div>
 
   <script>
-    const pwd = prompt('Admin password:')
-
     function filterCards(q) {
       q = q.toLowerCase().trim()
       document.querySelectorAll('.admin-row').forEach(row => {
@@ -2159,54 +2301,50 @@ function renderAdminQueue(normal, flagged, total) {
       })
     }
 
-    function showFlagForm(id) {
-      const form = document.getElementById('flag-form-' + id)
+    function showFlagForm(type, id) {
+      document.getElementById('flag-btn-'  + type + '-' + id).style.display = 'none'
+      const form = document.getElementById('flag-form-' + type + '-' + id)
       form.style.display = 'inline-flex'
-      form.style.alignItems = 'center'
-      document.getElementById('flag-input-' + id).focus()
+      document.getElementById('flag-inp-' + type + '-' + id).focus()
     }
-    function cancelFlag(id) {
-      document.getElementById('flag-form-' + id).style.display = 'none'
-      document.getElementById('flag-input-' + id).value = ''
+    function cancelFlag(type, id) {
+      document.getElementById('flag-form-' + type + '-' + id).style.display = 'none'
+      document.getElementById('flag-btn-'  + type + '-' + id).style.display = 'inline-block'
+      document.getElementById('flag-inp-'  + type + '-' + id).value = ''
+    }
+    async function confirmFlag(type, id) {
+      const reason = document.getElementById('flag-inp-' + type + '-' + id).value.trim() || 'Flagged by admin'
+      const ep = type === 'fb' ? 'flag-feedback' : 'flag-guidance'
+      const r = await api(ep + '/' + id, { reason })
+      if (r) location.reload()
+    }
+    async function doUnflag(type, id) {
+      const ep = type === 'fb' ? 'unflag-feedback' : 'unflag-guidance'
+      if (await api(ep + '/' + id)) location.reload()
     }
 
-    async function confirmFlag(id) {
-      const reason = document.getElementById('flag-input-' + id).value.trim() || 'Flagged by admin'
-      const res = await fetch('/api/admin/flag/' + id, {
-        method: 'POST',
-        headers: { 'x-admin-password': pwd, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reason })
-      })
-      if (!res.ok) { alert('Error flagging submission'); return }
+    async function doArchive(id)   { if (await api('archive/'   + id)) moveCard(id, 'archived-submissions') }
+    async function doUnarchive(id) { if (await api('unarchive/' + id)) moveCard(id, 'all-submissions') }
+    async function doDelete(id)    { if (!confirm('Move to Deleted?')) return; if (await api('delete/' + id)) moveCard(id, 'deleted-submissions') }
+    async function doRestore(id)   { if (await api('restore/'   + id)) moveCard(id, 'all-submissions') }
+
+    function moveCard(id, destId) {
       const card = document.getElementById('row-' + id)
+      if (!card) return
       card.remove()
-      const dest = document.getElementById('flagged-submissions')
+      const dest = document.getElementById(destId)
+      if (!dest) { location.reload(); return }
       const empty = dest.querySelector('.empty-state')
       if (empty) empty.remove()
-      card.dataset.flagged = '1'
       dest.prepend(card)
     }
 
-    async function doUnflag(id) {
-      const res = await fetch('/api/admin/unflag/' + id, {
-        method: 'POST',
-        headers: { 'x-admin-password': pwd }
-      })
-      if (!res.ok) { alert('Error unflagging submission'); return }
-      location.reload()
-    }
-
-    async function doDelete(id) {
-      if (!confirm('Permanently delete this submission?')) return
-      const res = await fetch('/api/admin/delete/' + id, {
-        method: 'POST',
-        headers: { 'x-admin-password': pwd }
-      })
-      if (res.ok) {
-        document.getElementById('row-' + id).remove()
-      } else {
-        alert('Error deleting submission')
-      }
+    async function api(endpoint, body) {
+      const opts = { method: 'POST', headers: { 'Content-Type': 'application/json' } }
+      if (body) opts.body = JSON.stringify(body)
+      const r = await fetch('/api/burkmin/' + endpoint, opts)
+      if (!r.ok) { alert('Error: ' + (await r.text())); return false }
+      return true
     }
   </script>
 </body>

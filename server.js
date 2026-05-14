@@ -934,6 +934,31 @@ function renderSubmitFlow(campus, allCampuses = []) {
         <button class="bubble" data-value="undocumented">Undocumented/DACA</button>
       </div>
 
+      <h3 class="field-label" style="margin-top:1.75rem">Which best describes how you handle stress? <span class="field-hint">(optional)</span></h3>
+      <p class="step-sub">Pick the one that feels most like you — or skip it.</p>
+      <div class="bubble-grid" id="archetype-select" style="grid-template-columns:1fr 1fr">
+        <button class="bubble archetype-bubble" data-value="guardian" style="display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:12px 14px;height:auto;text-align:left">
+          <span style="font-size:20px">🏔️</span>
+          <span style="font-weight:700;font-size:13px">Architect</span>
+          <span style="font-size:11px;color:#888;white-space:normal;line-height:1.4">I plan ahead and prepare before problems arise</span>
+        </button>
+        <button class="bubble archetype-bubble" data-value="warrior" style="display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:12px 14px;height:auto;text-align:left">
+          <span style="font-size:20px">⚡</span>
+          <span style="font-weight:700;font-size:13px">Warrior</span>
+          <span style="font-size:11px;color:#888;white-space:normal;line-height:1.4">I rise to the challenge when pressure is on</span>
+        </button>
+        <button class="bubble archetype-bubble" data-value="healer" style="display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:12px 14px;height:auto;text-align:left">
+          <span style="font-size:20px">💦</span>
+          <span style="font-weight:700;font-size:13px">Healer</span>
+          <span style="font-size:11px;color:#888;white-space:normal;line-height:1.4">I recover and come back stronger after setbacks</span>
+        </button>
+        <button class="bubble archetype-bubble" data-value="guide" style="display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:12px 14px;height:auto;text-align:left">
+          <span style="font-size:20px">🍃</span>
+          <span style="font-weight:700;font-size:13px">Guide</span>
+          <span style="font-size:11px;color:#888;white-space:normal;line-height:1.4">I spot patterns and anticipate what's coming</span>
+        </button>
+      </div>
+
       <button class="btn-primary step-next" data-next="2" id="step1-next" disabled>
         Continue →
       </button>
@@ -1208,6 +1233,7 @@ function renderSubmitFlow(campus, allCampuses = []) {
       subject_tag:     null,
       subject_tags:    [],
       dimension_tag:   null,
+      archetype_self:  null,
       feedback_text:   '',
       wish_text:       '',
       wish_dimension:  null,
@@ -1297,6 +1323,22 @@ function renderSubmitFlow(campus, allCampuses = []) {
           state.community_tags = state.community_tags.filter(t => t !== v)
         } else {
           state.community_tags.push(v)
+        }
+      })
+
+    // ── Single-select archetype gut-check (Step 1) ─────────
+    document.getElementById('archetype-select')
+      .addEventListener('click', e => {
+        const btn = e.target.closest('.archetype-bubble')
+        if (!btn) return
+        const alreadySelected = btn.classList.contains('selected')
+        document.querySelectorAll('#archetype-select .archetype-bubble')
+          .forEach(b => b.classList.remove('selected'))
+        if (!alreadySelected) {
+          btn.classList.add('selected')
+          state.archetype_self = btn.dataset.value
+        } else {
+          state.archetype_self = null
         }
       })
 
@@ -1489,19 +1531,25 @@ function renderSubmitFlow(campus, allCampuses = []) {
       goToStep(4)
 
       try {
-        const fd = new FormData()
-        fd.append("campus_id", state.campus_id)
-        fd.append("subject_tag", (state.subject_tags || []).join(','))
+        const payload = {
+          campus_id:      state.campus_id,
+          subject_tag:    (state.subject_tags || []).join(','),
+          archetype_self: state.archetype_self || null,
+          feedback_text:  state.feedback_text  || null,
+          wish_text:      state.wish_text.trim()  || null,
+          wish_dimension: state.wish_dimension || null,
+          year_in_school: state.year_in_school || null,
+          major:          state.major          || null,
+          community_tags: state.community_tags || []
+        }
         ;['physical','emotional','intellectual','social','spiritual','environmental','occupational','financial'].forEach(d => {
-          if (state.ratings[d] !== null) fd.append('rating_' + d, state.ratings[d])
+          payload['rating_' + d] = (state.ratings[d] != null && state.ratings[d] > 0) ? state.ratings[d] : null
         })
-        fd.append("feedback_text", state.feedback_text)
-        if (state.wish_text.trim()) fd.append("wish_text", state.wish_text.trim())
-        if (state.wish_dimension) fd.append("wish_dimension", state.wish_dimension)
-        if (state.year_in_school) fd.append("year_in_school", state.year_in_school)
-        if (state.major) fd.append("major", state.major)
-        ;(state.community_tags || []).forEach(t => fd.append("community_tags", t))
-        const res = await fetch("/api/submit", { method: "POST", body: fd })
+        const res = await fetch("/api/submit", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        })
         const data = await res.json()
 
         if (data.success) {
@@ -1629,13 +1677,17 @@ function renderReceipt(campusName, campusId, campusSlug, submitterId, dimension,
       status.textContent = ''
 
       try {
-        const fd = new FormData()
-        fd.append('email', email)
-        if (_campusId)    fd.append('campus_id',    _campusId)
-        if (_submitterId) fd.append('submitter_id', _submitterId)
-        fd.append('frequency',    _freq    || '')
-        fd.append('wants_summary', wants)
-        const r = await fetch('/api/subscribe', { method: 'POST', body: fd })
+        const r = await fetch('/api/subscribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email,
+            campus_id:    _campusId    || null,
+            submitter_id: _submitterId || null,
+            frequency:    _freq        || '',
+            wants_summary: wants
+          })
+        })
         const d = await r.json()
         if (d.success) {
           btn.replaceWith((() => {

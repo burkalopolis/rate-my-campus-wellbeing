@@ -270,10 +270,6 @@ app.post('/api/submit', submitLimiter, upload.single('image'), async (req, res) 
     return res.status(400).json({ error: 'Missing required field: campus_id' })
   }
 
-  if (!feedback_text || !feedback_text.trim()) {
-    return res.status(400).json({ error: 'Feedback text is required' })
-  }
-
   if (feedback_text && feedback_text.length > 500) {
     return res.status(400).json({
       error: 'Feedback must be 500 characters or fewer'
@@ -320,7 +316,7 @@ app.post('/api/submit', submitLimiter, upload.single('image'), async (req, res) 
     //   deleted, guidance_dimension, guidance_text, communities (text),
     //   rating_physical/emotional/intellectual/social/spiritual/environmental/occupational/financial
     // Removed: approved, image_url
-    const feedbackTrimmed = (feedback_text || '').trim()
+    const feedbackTrimmed = (feedback_text || '').trim() || null
 
     // communities arrives as repeated FormData fields — normalise to comma-separated text
     const communitiesText = Array.isArray(community_tags)
@@ -332,7 +328,7 @@ app.post('/api/submit', submitLimiter, upload.single('image'), async (req, res) 
       submitter_id:  submitter.id,
       subject_tag:   subject_tag   || null,
       dimension_tag: dimension_tag || null,
-      prompt_mode:   prompt_mode   || 'free',
+      prompt_mode:   prompt_mode   || null,
       prompt_used:   prompt_used   || null,
       feedback_text: feedbackTrimmed || null,
       year_in_school: year_in_school || null,
@@ -801,10 +797,9 @@ function renderSubmitFlow(campus, allCampuses = []) {
         <textarea
           id="feedback-text"
           class="feedback-textarea"
-          placeholder="In your own words — what do students need to know?"
+          placeholder="In your own words — what do students need to know? (optional)"
           maxlength="500"
         ></textarea>
-        <p id="feedback-error" style="display:none;color:#C0392B;font-size:13px;font-weight:600;margin:4px 0 0;">Please share at least a few words before submitting.</p>
         <div class="char-count">
           <span id="char-current">0</span> / 500
         </div>
@@ -1134,15 +1129,6 @@ function renderSubmitFlow(campus, allCampuses = []) {
 
     // ── Submit ─────────────────────────────────────────────
     submitBtn.addEventListener('click', async () => {
-      // Validate: feedback_text required (DB check constraint)
-      const feedbackError = document.getElementById('feedback-error')
-      if (!state.feedback_text.trim()) {
-        feedbackError.style.display = 'block'
-        document.getElementById('feedback-text').scrollIntoView({ behavior: 'smooth', block: 'center' })
-        return
-      }
-      feedbackError.style.display = 'none'
-
       // Validate Section 2: wish_dimension required if wish_text entered
       if (state.wish_text.trim() && !state.wish_dimension) {
         wishDimError.style.display = 'block'

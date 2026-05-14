@@ -135,7 +135,7 @@ app.get('/campus/:slug', async (req, res) => {
     .eq('campus_id', campus.id)
     .order('submission_count', { ascending: false })
 
-  // Get approved submissions feed
+  // Get submissions feed (no approved filter — column does not exist)
   const { data: submissions } = await supabase
     .from('submissions')
     .select(`
@@ -146,7 +146,6 @@ app.get('/campus/:slug', async (req, res) => {
       subject_tag,
       year_in_school,
       major,
-      image_url,
       created_at,
       submitters (
         community_tags,
@@ -154,25 +153,48 @@ app.get('/campus/:slug', async (req, res) => {
       )
     `)
     .eq('campus_id', campus.id)
-    .eq('approved', true)
-    .eq("deleted", false)
+    .neq('deleted', true)
+    .not('feedback_text', 'is', null)
     .order('created_at', { ascending: false })
     .limit(20)
 
-  // Total approved submission count
+  // Total submission count
   const { count } = await supabase
     .from('submissions')
     .select('id', { count: 'exact', head: true })
     .eq('campus_id', campus.id)
-    .eq('approved', true)
-    .eq("deleted", false)
+    .neq('deleted', true)
+
+  // Fetch all rating values to compute averages
+  const { data: ratingRows, error: ratingErr } = await supabaseAdmin
+    .from('submissions')
+    .select('rating_physical,rating_emotional,rating_intellectual,rating_social,rating_spiritual,rating_environmental,rating_occupational,rating_financial')
+    .eq('campus_id', campus.id)
+    .neq('deleted', true)
+
+  console.log(`[campus] slug=${slug} campus_id=${campus.id} ratingRows=${ratingRows?.length ?? 0} ratingErr=${ratingErr?.message ?? 'none'}`)
+
+  // Compute per-dimension averages (exclude nulls)
+  const RATING_DIMS = ['physical','emotional','intellectual','social','spiritual','environmental','occupational','financial']
+  const ratingAvgs = {}
+  let totalRatingsCount = 0
+  if (ratingRows && ratingRows.length > 0) {
+    totalRatingsCount = ratingRows.length
+    for (const dim of RATING_DIMS) {
+      const col = `rating_${dim}`
+      const vals = ratingRows.map(r => r[col]).filter(v => v !== null && v !== undefined)
+      ratingAvgs[dim] = vals.length > 0 ? Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 10) / 10 : null
+    }
+  }
 
   res.send(renderCampusPage(
     campus,
     archetypeScores || [],
     dimensionScores || [],
     submissions || [],
-    count || 0
+    count || 0,
+    ratingAvgs,
+    totalRatingsCount
   ))
 })
 
@@ -1352,7 +1374,7 @@ function renderReceipt(campusName, campusId, campusSlug, submitterId, dimension,
 </html>`
 }
 
-function renderCampusPage(campus, archetypeScores, dimensionScores, submissions, count) {
+function renderCampusPage(campus, archetypeScores, dimensionScores, submissions, count, ratingAvgs = {}, totalRatingsCount = 0) {
   const dominant = archetypeScores.find(a => a.is_dominant)
 
   const archLabels = {
@@ -1376,6 +1398,36 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
     occupational:  'Career / Occupational',
     financial:     'Financial'
   }
+
+  const dimColors = {
+    physical:      '#D4897A',
+    emotional:     '#E8B484',
+    intellectual:  '#E8D98A',
+    social:        '#94C48A',
+    spiritual:     '#90C8D8',
+    environmental: '#8A9AC4',
+    occupational:  '#A886B8',
+    financial:     '#D4A0B8'
+  }
+
+  const hasRatings = totalRatingsCount > 0 && Object.values(ratingAvgs).some(v => v !== null)
+
+  const ratingBars = dimOrder.map(dim => {
+    const avg = ratingAvgs[dim]
+    const pct = avg !== null ? (avg / 10 * 100) : 0
+    const label = dimLabels[dim]
+    const color = dimColors[dim]
+    return `
+    <div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <span style="font-size:13px;font-weight:600;color:#333">${label}</span>
+        <span style="font-size:13px;font-weight:700;color:#333">${avg !== null ? avg.toFixed(1) : 'N/A'}</span>
+      </div>
+      <div style="background:#eee;border-radius:6px;height:10px;overflow:hidden">
+        <div style="width:${pct}%;height:100%;background:${color};border-radius:6px;transition:width .4s"></div>
+      </div>
+    </div>`
+  }).join('')
 
   const maxDimCount = Math.max(...dimensionScores.map(d => d.submission_count), 1)
 
@@ -1470,13 +1522,21 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
         </div>
       </div>
 
-      ${count === 0 ? `
+      ${!hasRatings && count === 0 ? `
       <div class="empty-state">
         <p>No reviews yet for ${campus.name}.</p>
         <a href="/submit?campus=${campus.slug}" class="btn-primary">
           Be the first to share →
         </a>
       </div>` : `
+
+      ${hasRatings ? `
+      <div class="scores-panel" style="margin-bottom:24px">
+        <p class="panel-label">Campus Support Ratings</p>
+        ${ratingBars}
+        <p style="font-size:12px;color:#888;margin:10px 0 2px">Based on ${totalRatingsCount} rating${totalRatingsCount === 1 ? '' : 's'}</p>
+        <p style="font-size:11px;color:#aaa;margin:0">Source: Rate My Campus Wellbeing</p>
+      </div>` : ''}
 
       <div class="scores-grid">
         <div class="scores-panel">

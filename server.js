@@ -80,8 +80,20 @@ app.use((req, res, next) => {
 // Prevent spam submissions — 10 submissions per IP per hour
 const submitLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
-  max: 10,
-  message: { error: 'Too many submissions. Please try again later.' }
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many submissions — please try again later' },
+  statusCode: 429
+})
+
+const subscribeLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 3,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many submissions — please try again later' },
+  statusCode: 429
 })
 
 // ── Session-based admin auth middlewares ─────────────────────
@@ -392,7 +404,7 @@ app.get('/receipt', async (req, res) => {
 })
 
 // ── POST /api/subscribe ─────────────────────────────────────
-app.post('/api/subscribe', async (req, res) => {
+app.post('/api/subscribe', subscribeLimiter, async (req, res) => {
   const { email, campus_id, submitter_id, frequency, wants_summary } = req.body
   if (!email || !email.includes('@')) {
     return res.status(400).json({ error: 'Valid email required' })

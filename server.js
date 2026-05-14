@@ -173,12 +173,11 @@ app.get('/api/campus-radar', async (req, res) => {
     try {
       let q2 = supabaseCM.from('assessments')
         .select('q1,q2,q3,q4,q5,q6,q7,q8,year_in_school')
-      // OR match: slug format OR full name format
-      const orFilter = [
-        campus_slug ? `college.eq.${campus_slug}` : null,
-        campus_name ? `college.eq.${campus_name}` : null
-      ].filter(Boolean).join(',')
-      q2 = q2.or(orFilter)
+      // OR match: slug format OR full name format (values quoted for special chars)
+      const orParts = []
+      if (campus_slug) orParts.push(`college.eq."${campus_slug}"`)
+      if (campus_name) orParts.push(`college.eq."${campus_name}"`)
+      q2 = q2.or(orParts.join(','))
       if (year) q2 = q2.eq('year_in_school', year)
       const { data: cmRows, error: cmErr } = await q2
       if (!cmErr && cmRows && cmRows.length >= 3) {
@@ -314,7 +313,7 @@ app.get('/campus/:slug', async (req, res) => {
   let wellbeingAvgs = null, wellbeingCount = 0
   if (supabaseCM) {
     try {
-      const orFilter = [`college.eq.${campus.slug}`, `college.eq.${campus.name}`].join(',')
+      const orFilter = [`college.eq."${campus.slug}"`, `college.eq."${campus.name}"`].join(',')
       const { data: cmRows, error: cmErr } = await supabaseCM
         .from('assessments')
         .select('q1,q2,q3,q4,q5,q6,q7,q8')

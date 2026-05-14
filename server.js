@@ -7,7 +7,6 @@ import express from 'express'
 import session from 'express-session'
 import rateLimit from 'express-rate-limit'
 import { createClient } from '@supabase/supabase-js'
-import multer from 'multer'
 import path from 'path'
 import { fileURLToPath } from 'url'
 
@@ -75,16 +74,6 @@ app.use((req, res, next) => {
     res.setHeader('X-Robots-Tag', 'index, follow')
   }
   next()
-})
-
-// ── Multer — memory storage, upload to Supabase Storage ────
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 },
-  fileFilter: (_req, file, cb) => {
-    const allowed = ["image/jpeg", "image/png", "image/gif"]
-    allowed.includes(file.mimetype) ? cb(null, true) : cb(new Error("Only jpg/png/gif allowed"), false)
-  }
 })
 
 // ── Rate limiting ───────────────────────────────────────────
@@ -403,7 +392,7 @@ app.get('/receipt', async (req, res) => {
 })
 
 // ── POST /api/subscribe ─────────────────────────────────────
-app.post('/api/subscribe', upload.none(), async (req, res) => {
+app.post('/api/subscribe', async (req, res) => {
   const { email, campus_id, submitter_id, frequency, wants_summary } = req.body
   if (!email || !email.includes('@')) {
     return res.status(400).json({ error: 'Valid email required' })
@@ -499,13 +488,12 @@ app.get('/burkmin/dashboard', requireAdminSession, async (req, res) => {
 // ============================================================
 
 // ── POST /api/submit ────────────────────────────────────────
-app.post('/api/submit', submitLimiter, upload.single('image'), async (req, res) => {
+app.post('/api/submit', submitLimiter, async (req, res) => {
   const {
     campus_id,
     community_tags,
     archetype_self,
     subject_tag,
-    dimension_tag,
     prompt_mode,
     prompt_used,
     feedback_text,
@@ -568,12 +556,11 @@ app.post('/api/submit', submitLimiter, upload.single('image'), async (req, res) 
     }
 
     // 2. Create submission record
-    // Schema: campus_id, submitter_id, subject_tag, dimension_tag, archetype_derived (trigger),
+    // Schema: campus_id, submitter_id, subject_tag, archetype_derived (trigger),
     //   prompt_mode, prompt_used, feedback_text, year_in_school, major,
     //   flagged (bool NOT NULL), flag_reason, created_at (auto),
     //   deleted, guidance_dimension, guidance_text, communities (text),
     //   rating_physical/emotional/intellectual/social/spiritual/environmental/occupational/financial
-    // Removed: approved, image_url
     const feedbackTrimmed = (feedback_text || '').trim() || null
 
     // communities arrives as repeated FormData fields — normalise to comma-separated text
@@ -585,7 +572,7 @@ app.post('/api/submit', submitLimiter, upload.single('image'), async (req, res) 
       campus_id,
       submitter_id:  submitter.id,
       subject_tag:   subject_tag   || null,
-      dimension_tag: dimension_tag || null,
+      dimension_tag: null,
       prompt_mode:   prompt_mode   || null,
       prompt_used:   prompt_used   || null,
       feedback_text: feedbackTrimmed || null,
@@ -1407,10 +1394,6 @@ function renderSubmitFlow(campus, allCampuses = []) {
     }
 
     function proceedFromStep2() {
-      const nonNA = RATING_DIMS.filter(d => state.ratings[d] > 0)
-      state.dimension_tag = nonNA.length
-        ? nonNA.reduce((a, b) => state.ratings[a] >= state.ratings[b] ? a : b)
-        : RATING_DIMS[0]
       goToStep(3)
     }
 
@@ -1509,7 +1492,6 @@ function renderSubmitFlow(campus, allCampuses = []) {
         const fd = new FormData()
         fd.append("campus_id", state.campus_id)
         fd.append("subject_tag", (state.subject_tags || []).join(','))
-        fd.append("dimension_tag", state.dimension_tag || "")
         ;['physical','emotional','intellectual','social','spiritual','environmental','occupational','financial'].forEach(d => {
           if (state.ratings[d] !== null) fd.append('rating_' + d, state.ratings[d])
         })
@@ -1528,7 +1510,6 @@ function renderSubmitFlow(campus, allCampuses = []) {
             '&campus_id='     + encodeURIComponent(state.campus_id) +
             '&campus_slug='   + encodeURIComponent(state.campus_slug) +
             '&submitter_id='  + encodeURIComponent(data.submitter_id || '') +
-            '&dimension='     + encodeURIComponent(state.dimension_tag) +
             '&archetype='     + encodeURIComponent(data.archetype_derived || '')
         } else {
           alert('Something went wrong: ' + (data.error || 'Unknown error'))

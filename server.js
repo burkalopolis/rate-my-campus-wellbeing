@@ -26,6 +26,7 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_KEY
 )
 
+
 // ── Express setup ───────────────────────────────────────────
 const app = express()
 app.set("trust proxy", 1)
@@ -178,8 +179,28 @@ app.get('/campus/:slug', async (req, res) => {
 
 // ── Receipt page ────────────────────────────────────────────
 app.get('/receipt', async (req, res) => {
-  const { campus, dimension, archetype } = req.query
-  res.send(renderReceipt(campus, dimension, archetype))
+  const { campus, campus_id, campus_slug, dimension, archetype } = req.query
+  res.send(renderReceipt(campus, campus_id, campus_slug, dimension, archetype))
+})
+
+// ── POST /api/subscribe ─────────────────────────────────────
+app.post('/api/subscribe', upload.none(), async (req, res) => {
+  const { email, campus_id, frequency, wants_summary } = req.body
+  if (!email || !email.includes('@')) {
+    return res.status(400).json({ error: 'Valid email required' })
+  }
+  try {
+    const cleanEmail  = email.trim().toLowerCase()
+    const wantsBool   = wants_summary === 'true' || wants_summary === true
+    const campusUUID  = campus_id && campus_id.match(/^[0-9a-f-]{36}$/) ? campus_id : null
+    const { error: insErr } = await supabaseAdmin
+      .from('email_subscriptions')
+      .insert({ email: cleanEmail, campus_id: campusUUID, frequency: frequency || null, wants_summary: wantsBool })
+    if (insErr) throw new Error(insErr.message)
+    res.json({ success: true })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
 })
 
 // ── Admin queue ─────────────────────────────────────────────
@@ -1137,9 +1158,11 @@ function renderSubmitFlow(campus, allCampuses = []) {
 
         if (data.success) {
           window.location.href = '/receipt' +
-            '?campus=' + encodeURIComponent(state.campus_name) +
-            '&dimension=' + encodeURIComponent(state.dimension_tag) +
-            '&archetype=' + encodeURIComponent(data.archetype_derived || '')
+            '?campus='      + encodeURIComponent(state.campus_name) +
+            '&campus_id='   + encodeURIComponent(state.campus_id) +
+            '&campus_slug=' + encodeURIComponent(state.campus_slug) +
+            '&dimension='   + encodeURIComponent(state.dimension_tag) +
+            '&archetype='   + encodeURIComponent(data.archetype_derived || '')
         } else {
           alert('Something went wrong: ' + (data.error || 'Unknown error'))
           goToStep(3)
@@ -1154,14 +1177,8 @@ function renderSubmitFlow(campus, allCampuses = []) {
 </html>`
 }
 
-function renderReceipt(campusName, dimension, archetype) {
-  const archetypeLabels = {
-    guardian: { emoji: '🏔️', name: 'The Architect', phase: 'Prepare' },
-    warrior:  { emoji: '⚡', name: 'The Warrior',  phase: 'Respond' },
-    healer:   { emoji: '💦', name: 'The Healer',   phase: 'Recover' },
-    guide:    { emoji: '🍃', name: 'The Guide',    phase: 'Anticipate' }
-  }
-  const arch = archetypeLabels[archetype] || null
+function renderReceipt(campusName, campusId, campusSlug, dimension, archetype) {
+  const campusHref = campusSlug ? `/campus/${campusSlug}` : '/'
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -1174,43 +1191,113 @@ function renderReceipt(campusName, dimension, archetype) {
 <body>
   <div class="page-receipt">
 
+    <!-- 1. Confirmation block -->
     <div class="receipt-confirm">
-      <div class="confirm-icon">✓</div>
-      <h1>Your voice is in.</h1>
-      <p>Your experience just made this campus more legible
-         for the next student.</p>
+      <div class="receipt-check">✓</div>
+      <h1 class="receipt-heading">Your voice is in.</h1>
+      <p class="receipt-sub">Your experience just made this campus more legible for the next student.</p>
     </div>
 
-    ${arch ? `
-    <div class="receipt-archetype">
-      <p class="receipt-label">Your feedback was tagged as</p>
-      <div class="arch-pill ${archetype}">
-        ${arch.emoji} ${arch.name} · ${arch.phase}
-      </div>
-    </div>` : ''}
+    <!-- 2. Contact capture block -->
+    <div class="receipt-contact-card">
+      <p class="receipt-section-label">Stay in the loop.</p>
 
-    <div class="receipt-divider">
-      <span>Now — how are <em>you</em> doing?</span>
+      <div class="contact-offer">
+        <label class="contact-offer-label" for="rc-email">Get notified when your campus has new ratings.</label>
+        <input type="email" id="rc-email" class="contact-email-input" placeholder="your@email.edu" autocomplete="email">
+        <div class="freq-pills" id="freq-pills" role="group" aria-label="Notification frequency">
+          <button class="freq-pill" data-value="weekly"    type="button">Weekly</button>
+          <button class="freq-pill" data-value="monthly"   type="button">Monthly</button>
+          <button class="freq-pill" data-value="quarterly" type="button">Quarterly</button>
+          <button class="freq-pill" data-value="annually"  type="button">Annually</button>
+        </div>
+      </div>
+
+      <label class="contact-checkbox-row">
+        <input type="checkbox" id="rc-summary">
+        <span>Send me a copy of my feedback summary.</span>
+      </label>
+
+      <button class="btn-subscribe" id="rc-subscribe-btn" type="button">Subscribe</button>
+      <p class="subscribe-status" id="rc-status" aria-live="polite"></p>
     </div>
 
-    <div class="campusmind-bridge">
-      <div class="bridge-logo">CampusMind</div>
-      <p class="bridge-eyebrow">Resilience Self-Assessment</p>
-      <h2>Discover Your Resilience Archetype</h2>
-      <div class="trust-row">
-        <span class="trust-pill light">8 Questions</span>
-        <span class="trust-pill light">~3 Minutes</span>
-        <span class="trust-pill light">No Login</span>
-      </div>
-      <a href="https://www.campusmind.org/demo"
-         target="_blank"
-         class="btn-primary btn-gold">
-        Find Your Profile →
+    <!-- 3. CTA block -->
+    <div class="receipt-cta">
+      <a href="https://campusmind.org/demo" target="_blank" rel="noopener" class="btn-receipt-primary">
+        Find My Resilience Archetype →
       </a>
-      <p class="bridge-sub">Free · No sign-up required · Secure</p>
+      <a href="${campusHref}" class="btn-receipt-secondary">
+        View My Campus Wellbeing
+      </a>
     </div>
+
+    <!-- 4. Retake link -->
+    <div class="receipt-retake">
+      <a href="/submit" class="retake-link">Retake Assessment</a>
+    </div>
+
+    <!-- 5. Footer -->
+    <footer class="receipt-footer">
+      <p>© 2026 Rate My Campus Wellbeing · Resilience Assessment</p>
+    </footer>
 
   </div>
+
+  <script>
+    const _campusId = ${JSON.stringify(campusId || null)}
+    let _freq = null
+
+    document.querySelectorAll('.freq-pill').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.freq-pill').forEach(b => b.classList.remove('selected'))
+        btn.classList.add('selected')
+        _freq = btn.dataset.value
+      })
+    })
+
+    document.getElementById('rc-subscribe-btn').addEventListener('click', async () => {
+      const email  = document.getElementById('rc-email').value.trim()
+      const wants  = document.getElementById('rc-summary').checked
+      const status = document.getElementById('rc-status')
+      const btn    = document.getElementById('rc-subscribe-btn')
+
+      if (!email) {
+        status.textContent = 'Please enter your email address.'
+        status.className = 'subscribe-status error'
+        return
+      }
+
+      btn.disabled = true
+      btn.textContent = 'Saving...'
+      status.textContent = ''
+
+      try {
+        const fd = new FormData()
+        fd.append('email', email)
+        if (_campusId) fd.append('campus_id', _campusId)
+        if (_freq)     fd.append('frequency',  _freq)
+        fd.append('wants_summary', wants)
+        const r = await fetch('/api/subscribe', { method: 'POST', body: fd })
+        const d = await r.json()
+        if (d.success) {
+          btn.textContent = 'Subscribed ✓'
+          status.textContent = "You're on the list."
+          status.className = 'subscribe-status success'
+        } else {
+          btn.disabled = false
+          btn.textContent = 'Subscribe'
+          status.textContent = 'Something went wrong. Try again.'
+          status.className = 'subscribe-status error'
+        }
+      } catch {
+        btn.disabled = false
+        btn.textContent = 'Subscribe'
+        status.textContent = 'Network error. Try again.'
+        status.className = 'subscribe-status error'
+      }
+    })
+  </script>
 </body>
 </html>`
 }

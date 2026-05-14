@@ -2067,3 +2067,10 @@ img { max-width: 100%; display: block; }
   justify-content: center;
   border-radius: var(--radius-md);
 }
+
+/* Campus bar chart accordions sit below each rating bar */
+.campus-dim-accordion {
+  border-top: none;
+  padding-top: 0;
+  margin-top: 6px;
+}

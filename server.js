@@ -1775,6 +1775,17 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
 
   const hasRatings = totalRatingsCount > 0 && Object.values(ratingAvgs).some(v => v !== null)
 
+  const dimDefinitions = {
+    physical:     'Think about access to food (dining halls, food pantries), quality of sleep environments in housing, campus recreation and fitness facilities, and access to student health services when you were sick or recovering.',
+    emotional:    'Think about counseling availability, wait times for appointments, crisis response, how openly mental health is talked about on campus, and whether you felt safe asking for help.',
+    intellectual: 'Think about tutoring, academic advising quality, early warning systems when you were struggling, access to office hours, academic probation support, and how the campus communicated academic risk to you.',
+    social:       'Think about whether you felt welcomed, whether you found your people, the quality of residential life, availability of student organizations, and how inclusive the campus culture felt across different identities and backgrounds.',
+    spiritual:    'Think about the quality of onboarding and orientation, whether student government felt representative, whether campus values aligned with yours, and whether the institution gave you a sense of direction beyond academics.',
+    environmental:'Think about housing quality and availability, campus security and lighting, ease of getting around, access to quiet and open spaces, and whether the physical environment supported your ability to study and rest.',
+    occupational: 'Think about career services quality, internship and job placement support, ease of choosing or changing your major, access to research or work opportunities on campus, and whether faculty and advisors helped you connect your studies to your future.',
+    financial:    'Think about the clarity and accessibility of financial aid, scholarship availability, the overall burden of cost relative to what you received, and whether the campus helped you understand and manage your financial situation as a student.',
+  }
+
   const ratingBars = dimOrder.map(dim => {
     const avg = ratingAvgs[dim]
     const pct = avg != null ? (avg / 10 * 100) : 0
@@ -1789,25 +1800,14 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
       <div style="background:#eee;border-radius:6px;height:10px;overflow:hidden">
         <div style="width:${pct}%;height:100%;background:${color};border-radius:6px;transition:width .4s"></div>
       </div>
+      <details class="rating-accordion campus-dim-accordion">
+        <summary>What does this include? ▾</summary>
+        <p>${dimDefinitions[dim]}</p>
+      </details>
     </div>`
   }).join('')
 
   const maxDimCount = Math.max(...dimensionScores.map(d => d.submission_count), 1)
-
-  const dimensionBars = dimOrder.map(dim => {
-    const score = dimensionScores.find(d => d.dimension_tag === dim)
-    const pct = score
-      ? Math.round((score.submission_count / maxDimCount) * 100)
-      : 0
-    return `
-    <div class="dim-row">
-      <span class="dim-label">${dimLabels[dim]}</span>
-      <div class="dim-bar-bg">
-        <div class="dim-bar-fill dim-${dim}" style="width:${pct}%"></div>
-      </div>
-      <span class="dim-count">${score?.submission_count || 0}</span>
-    </div>`
-  }).join('')
 
   const archetypeCards = ['guardian','warrior','guide','healer'].map(key => {
     const score = archetypeScores.find(a => a.archetype_tag === key)
@@ -2316,6 +2316,17 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
         applySubjectFilter()
       })
     }
+
+    // ── Campus bar chart accordions (one open at a time) ────
+    document.querySelectorAll('.campus-dim-accordion summary').forEach(summary => {
+      summary.addEventListener('click', e => {
+        e.preventDefault()
+        const det    = summary.parentElement
+        const isOpen = det.hasAttribute('open')
+        document.querySelectorAll('.campus-dim-accordion').forEach(d => d.removeAttribute('open'))
+        if (!isOpen) det.setAttribute('open', '')
+      })
+    })
   </script>
 </body>
 </html>`

@@ -1633,15 +1633,13 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
     </header>
 
     <main class="campus-main">
+      <a href="/" style="display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:#4A6FA5;text-decoration:none;margin-bottom:16px;opacity:.85">← Back</a>
       <div class="campus-header">
         <div>
           <h1>${campus.name}</h1>
           <p class="campus-meta">
             ${campus.system} System · ${campus.city || ''}
           </p>
-        </div>
-        <div class="campus-stats">
-          <span class="stat-pill">${count} reviews</span>
         </div>
       </div>
 
@@ -1654,15 +1652,17 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
       </div>` : `
 
       ${hasRatings ? `
-      <div class="scores-panel" style="margin-bottom:24px">
-        <p class="panel-label">Campus Support Ratings</p>
-        <p style="font-size:11px;color:#aaa;margin:-4px 0 14px">Scale: 0 = N/A &nbsp;·&nbsp; 1 = No Support &nbsp;·&nbsp; 5 = Neutral &nbsp;·&nbsp; 7 = Good &nbsp;·&nbsp; 10 = Outstanding</p>
+      <div class="scores-panel" style="margin-bottom:24px;position:relative">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:2px">
+          <p class="panel-label" style="margin:0">Campus Support Ratings</p>
+          <span style="font-size:11px;color:#aaa;border:1px solid #e0e0e0;border-radius:20px;padding:2px 10px;white-space:nowrap;margin-left:8px">${totalRatingsCount} rating${totalRatingsCount === 1 ? '' : 's'}</span>
+        </div>
+        <p style="font-size:11px;color:#aaa;margin:4px 0 14px">Scale: 0 = N/A &nbsp;·&nbsp; 1 = No Support &nbsp;·&nbsp; 5 = Neutral &nbsp;·&nbsp; 7 = Good &nbsp;·&nbsp; 10 = Outstanding</p>
         ${yearPills}
         <div id="ratings-chart">
           ${ratingBars}
         </div>
-        <p id="ratings-count" style="font-size:12px;color:#888;margin:10px 0 2px">Based on ${totalRatingsCount} rating${totalRatingsCount === 1 ? '' : 's'}</p>
-        <p style="font-size:11px;color:#aaa;margin:0">Source: Rate My Campus Wellbeing</p>
+        <p style="font-size:11px;color:#aaa;margin:10px 0 0">Source: Rate My Campus Wellbeing</p>
       </div>` : ''}
 
       ${(() => {
@@ -1764,11 +1764,18 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
       </div>
       `}
 
-      <div class="campus-cta">
-        <p>Add your voice to the conversation.</p>
-        <a href="/submit?campus=${campus.slug}" class="btn-primary">
-          Rate This Campus →
-        </a>
+      <div style="text-align:center;padding:32px 16px 8px">
+        <p style="font-size:12px;color:#aaa;margin:0 0 18px;letter-spacing:.02em">Your experience helps the next student.</p>
+        <div style="display:flex;flex-direction:column;gap:12px;max-width:340px;margin:0 auto">
+          <a href="/submit?campus=${campus.slug}"
+             style="display:block;background:#4A6FA5;color:#fff;font-size:15px;font-weight:700;text-decoration:none;text-align:center;padding:0 28px;height:48px;line-height:48px;border-radius:100px">
+            Rate This Campus →
+          </a>
+          <a href="https://campusmind.org/demo" target="_blank" rel="noopener"
+             style="display:block;background:transparent;color:#4A6FA5;font-size:15px;font-weight:700;text-decoration:none;text-align:center;padding:0 28px;height:48px;line-height:48px;border-radius:100px;border:2px solid #4A6FA5">
+            Check In On Your Wellbeing →
+          </a>
+        </div>
       </div>
     </main>
 

@@ -59,6 +59,24 @@ app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 app.use(express.static(path.join(__dirname, 'public')))
 
+// ── Cache + robots headers ───────────────────────────────────
+// express-session sets Cache-Control: private on every response.
+// Override it: public pages get public caching + indexing signal;
+// admin and receipt pages stay private + noindex.
+app.use((req, res, next) => {
+  const path = req.path
+  const isAdmin   = path.startsWith('/burkmin') || path.startsWith('/api/burkmin')
+  const isReceipt = path === '/receipt'
+  if (isAdmin || isReceipt) {
+    res.setHeader('Cache-Control', 'no-store, private')
+    res.setHeader('X-Robots-Tag', 'noindex, nofollow')
+  } else {
+    res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate')
+    res.setHeader('X-Robots-Tag', 'index, follow')
+  }
+  next()
+})
+
 // ── Multer — memory storage, upload to Supabase Storage ────
 const upload = multer({
   storage: multer.memoryStorage(),

@@ -2058,3 +2058,12 @@ img { max-width: 100%; display: block; }
   color: var(--text-muted);
   margin: 0;
 }
+
+/* Archetype gut-check cards (overrides .bubble defaults) */
+.archetype-bubble {
+  white-space: normal;
+  text-align: center;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+}

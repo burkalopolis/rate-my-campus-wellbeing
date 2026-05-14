@@ -991,7 +991,6 @@ function renderSubmitFlow(campus, allCampuses = []) {
         }
         state.subject_tags = Array.from(document.querySelectorAll('#subject-tags .bubble.selected')).map(b => b.dataset.value)
         state.subject_tag = state.subject_tags[0] || null
-        checkStep2()
       })
     // ── Rating sliders (Step 2) ────────────────────────────
     const RATING_DIMS   = ['physical','emotional','intellectual','social','spiritual','environmental','occupational','financial']
@@ -1480,6 +1479,11 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
   <script>
     const activeFilters = new Set()
 
+    const filterAllBtn   = document.getElementById('filter-all')
+    const filterClearBtn = document.getElementById('filter-clear')
+    const filterSelect   = document.getElementById('community-filter-select')
+    const activeChipsEl  = document.getElementById('active-chips')
+
     function applyFilters() {
       const entries = document.querySelectorAll('.feed-entry')
       entries.forEach(entry => {
@@ -1487,11 +1491,11 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
         const community = (entry.dataset.community || '').split(',').map(t => t.trim())
         entry.style.display = [...activeFilters].some(f => community.includes(f)) ? '' : 'none'
       })
-      document.getElementById('filter-all').classList.toggle('active', activeFilters.size === 0)
+      if (filterAllBtn) filterAllBtn.classList.toggle('active', activeFilters.size === 0)
     }
 
     function addChip(tag) {
-      if (activeFilters.has(tag)) return
+      if (activeFilters.has(tag) || !activeChipsEl) return
       activeFilters.add(tag)
       const chip = document.createElement('button')
       chip.className = 'chip active-chip'
@@ -1500,15 +1504,11 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
         activeFilters.delete(tag)
         chip.remove()
         applyFilters()
-        document.getElementById('community-filter-select').value = ''
+        if (filterSelect) filterSelect.value = ''
       })
-      document.getElementById('active-chips').appendChild(chip)
+      activeChipsEl.appendChild(chip)
       applyFilters()
     }
-
-    const filterAllBtn  = document.getElementById('filter-all')
-    const filterClearBtn = document.getElementById('filter-clear')
-    const filterSelect   = document.getElementById('community-filter-select')
 
     if (filterAllBtn) filterAllBtn.addEventListener('click', () => {
       activeFilters.clear()

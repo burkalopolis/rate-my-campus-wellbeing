@@ -1667,7 +1667,8 @@ function renderSubmitFlow(campus, allCampuses = []) {
 }
 
 function renderReceipt(campusName, campusId, campusSlug, submitterId, dimension, archetype) {
-  const campusHref = campusSlug ? `/campus/${campusSlug}` : '/'
+  const campusHref = escapeHtml(campusSlug ? `/campus/${campusSlug}` : '/')
+  const safeCampusName = escapeHtml(campusName || '')
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -1724,7 +1725,7 @@ function renderReceipt(campusName, campusId, campusSlug, submitterId, dimension,
         Find My Resilience Archetype →
       </a>
       <a href="${campusHref}" class="btn-receipt-secondary">
-        See How ${campusName ? campusName : 'My Campus'} Scores
+        See How ${safeCampusName ? safeCampusName : 'My Campus'} Scores
       </a>
     </div>
 
@@ -1741,8 +1742,8 @@ function renderReceipt(campusName, campusId, campusSlug, submitterId, dimension,
   </div>
 
   <script>
-    const _campusId    = ${JSON.stringify(campusId    || null)}
-    const _submitterId = ${JSON.stringify(submitterId || null)}
+    const _campusId    = ${JSON.stringify(campusId    || null).replace(/</g, '\\u003c')}
+    const _submitterId = ${JSON.stringify(submitterId || null).replace(/</g, '\\u003c')}
     let _freq = null
 
     document.querySelectorAll('.freq-pill').forEach(btn => {
@@ -1908,9 +1909,9 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
     return [
       '<div class="feed-entry" data-dim="' + (s.dimension_tag||'') + '" data-subject="' + escapeHtml(s.subject_tag||'') + '">',
       '<div class="feed-meta">',
-      s.year_in_school ? '<span class="meta-pill">' + s.year_in_school + ' year</span>' : '',
+      s.year_in_school ? '<span class="meta-pill">' + escapeHtml(s.year_in_school) + ' year</span>' : '',
       s.major ? '<span class="meta-pill">' + escapeHtml(s.major) + '</span>' : '',
-      communityTags.length ? '<span class="meta-pill">' + communityTags.join(', ') + '</span>' : '',
+      communityTags.length ? '<span class="meta-pill">' + communityTags.map(t => escapeHtml(t)).join(', ') + '</span>' : '',
       '</div>',
       '<p class="feed-text">' + bodyText + '</p>',
       '<div class="feed-tags">',

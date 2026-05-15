@@ -723,7 +723,7 @@ app.get('/sitemap.xml', async (req, res) => {
     <priority>${path === '/' ? '1.0' : '0.7'}</priority>
   </url>`).join('')
 
-  const campusUrls = (campuses || []).map(c => `
+  const campusUrls = (campuses || []).filter(c => c.slug !== 'other').map(c => `
   <url>
     <loc>${base}/campus/${c.slug}</loc>
     <lastmod>${today}</lastmod>
@@ -789,6 +789,9 @@ function renderLanding(uc, csu, other) {
   <meta name="twitter:description" content="Anonymous student wellbeing ratings for UC and CSU campuses.">
   <meta name="robots" content="index, follow">
   <link rel="stylesheet" href="/style.css">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Rate My Campus Wellbeing","url":"https://ratemycampuswellbeing.com","description":"Anonymous student wellbeing ratings for UC and CSU campuses. See how students rate mental health, social connection, academic pressure, and more.","potentialAction":{"@type":"SearchAction","target":{"@type":"EntryPoint","urlTemplate":"https://ratemycampuswellbeing.com/campus/{slug}"},"query-input":"required name=slug"}},{"@type":"Organization","name":"Rate My Campus Wellbeing","url":"https://ratemycampuswellbeing.com","description":"Anonymous platform for UC and CSU students to rate their campus wellbeing experience."}]}
+  </script>
 </head>
 <body>
   <div class="page-landing">
@@ -896,7 +899,7 @@ function renderSubmitFlow(campus, allCampuses = []) {
 <body>
   <div class="page-submit">
     <header class="submit-header">
-      <a href="/" class="back-link">← Back</a>
+      <a href="/" class="back-link">← Back to Home</a>
       <div class="progress-bar">
         <div class="progress-fill" id="progress-fill" style="width: 25%"></div>
       </div>
@@ -906,6 +909,8 @@ function renderSubmitFlow(campus, allCampuses = []) {
     <div class="context-bar" id="context-bar" style="display:none">
       <div class="context-items" id="context-items"></div>
     </div>
+
+    <h1 class="sr-only">Rate My Campus Wellbeing — Share Your Experience</h1>
 
     <!-- Step 1: Who are you? -->
     <div class="step" id="step-1">
@@ -1870,6 +1875,9 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
   <meta name="twitter:title" content="${campus.name} Wellbeing — Rate My Campus Wellbeing">
   <meta name="twitter:description" content="Student wellbeing scores and reviews for ${campus.name}.">
   <meta name="robots" content="index, follow">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@type":"CollegeOrUniversity","name":"${campus.name}","url":"https://ratemycampuswellbeing.com/campus/${campus.slug}","sameAs":[],"review":{"@type":"UserReview","reviewBody":"Student wellbeing ratings and anonymous reviews for ${campus.name} covering mental health support, social belonging, academic resources, financial aid, and more.","itemReviewed":{"@type":"CollegeOrUniversity","name":"${campus.name}"}}}
+  </script>
   <link rel="stylesheet" href="/style.css">
   <style>
     .year-pill{padding:6px 14px;border-radius:20px;border:1.5px solid #ccc;background:#fff;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s}
@@ -1891,7 +1899,7 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
     </header>
 
     <main class="campus-main">
-      <a href="/" style="display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:#4A6FA5;text-decoration:none;margin-bottom:16px;opacity:.85">← Back</a>
+      <a href="/" style="display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:#4A6FA5;text-decoration:none;margin-bottom:16px;opacity:.85">← All Campuses</a>
       <div class="campus-header">
         <div>
           <h1>${campus.name}</h1>
@@ -1913,15 +1921,15 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
       <div class="scores-panel" style="margin-bottom:24px;position:relative">
         <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:2px">
           <p class="panel-label" style="margin:0">Campus Support Ratings</p>
-          <span style="font-size:11px;color:#aaa;border:1px solid #e0e0e0;border-radius:20px;padding:2px 10px;white-space:nowrap;margin-left:8px">${totalRatingsCount} rating${totalRatingsCount === 1 ? '' : 's'}</span>
+          <span style="font-size:12px;color:#aaa;border:1px solid #e0e0e0;border-radius:20px;padding:2px 10px;white-space:nowrap;margin-left:8px">${totalRatingsCount} rating${totalRatingsCount === 1 ? '' : 's'}</span>
         </div>
-        <p style="font-size:11px;color:#aaa;margin:4px 0 14px">Scale: 0 = N/A &nbsp;·&nbsp; 1 = No Support &nbsp;·&nbsp; 5 = Neutral &nbsp;·&nbsp; 7 = Good &nbsp;·&nbsp; 10 = Outstanding</p>
+        <p style="font-size:12px;color:#aaa;margin:4px 0 14px">Scale: 0 = N/A &nbsp;·&nbsp; 1 = No Support &nbsp;·&nbsp; 5 = Neutral &nbsp;·&nbsp; 7 = Good &nbsp;·&nbsp; 10 = Outstanding</p>
         ${yearPills}
         <div id="ratings-chart">
           ${ratingBars}
         </div>
         <p id="ratings-count" style="font-size:12px;color:#aaa;margin:8px 0 4px">Based on ${totalRatingsCount} rating${totalRatingsCount === 1 ? '' : 's'}</p>
-        <p style="font-size:11px;color:#aaa;margin:4px 0 0">Source: Rate My Campus Wellbeing · ratemycampuswellbeing.com</p>
+        <p style="font-size:12px;color:#aaa;margin:4px 0 0">Source: Rate My Campus Wellbeing · ratemycampuswellbeing.com</p>
       </div>` : ''}
 
       ${(() => {
@@ -1940,15 +1948,15 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
           // Per-layer partial-data note
           let note = ''
           if (hasRmcw && !hasWellbeing) {
-            note = '<p style="font-size:11px;color:#aaa;margin:8px 0 0">Student Wellbeing data not yet available for this campus &nbsp;·&nbsp; <a href="https://campusmind.org/demo" target="_blank" rel="noopener" style="color:#ca8a04;text-decoration:none;font-weight:600">Be the first → campusmind.org/demo</a></p>'
+            note = '<p style="font-size:12px;color:#aaa;margin:8px 0 0">Student Wellbeing data not yet available for this campus &nbsp;·&nbsp; <a href="https://campusmind.org/demo" target="_blank" rel="noopener" style="color:#ca8a04;text-decoration:none;font-weight:600">Be the first → campusmind.org/demo</a></p>'
           } else if (!hasRmcw && hasWellbeing) {
-            note = '<p style="font-size:11px;color:#aaa;margin:8px 0 0">Campus Support data not yet available &nbsp;·&nbsp; <a href="/submit?campus=${campus.slug}" style="color:#ef4444;text-decoration:none;font-weight:600">Rate This Campus →</a></p>'
+            note = '<p style="font-size:12px;color:#aaa;margin:8px 0 0">Campus Support data not yet available &nbsp;·&nbsp; <a href="/submit?campus=${campus.slug}" style="color:#ef4444;text-decoration:none;font-weight:600">Rate This Campus →</a></p>'
           }
 
           // Per-layer citations
           const citRmcw     = '<span><span style="color:#ef4444;font-weight:700">●</span> Campus Support · Rate My Campus Wellbeing · ratemycampuswellbeing.com</span>'
           const citWellbeing= '<span><span style="color:#ca8a04;font-weight:700">●</span> Student Wellbeing · CampusMind · campusmind.org/demo</span>'
-          const citations   = '<div style="display:flex;gap:16px;margin-top:10px;flex-wrap:wrap;font-size:10px;color:#aaa;line-height:1.6">' +
+          const citations   = '<div style="display:flex;gap:16px;margin-top:10px;flex-wrap:wrap;font-size:12px;color:#aaa;line-height:1.6">' +
             (hasRmcw ? citRmcw : '') +
             (hasWellbeing ? citWellbeing : '') +
             '</div>'
@@ -2246,10 +2254,10 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
       const cards = ['guardian', 'warrior', 'guide', 'healer'].map(key => {
         const m = _leanMeta[key], pct = data.pcts[key] || 0, isDom = data.dominant === key
         return '<div style="background:' + m.color + '1a;border:2px solid ' + (isDom ? m.color : '#e5e5e5') + ';border-radius:12px;padding:14px;position:relative">' +
-          (isDom ? '<span style="position:absolute;top:8px;right:8px;background:' + m.color + ';color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px">Leading</span>' : '') +
+          (isDom ? '<span style="position:absolute;top:8px;right:8px;background:' + m.color + ';color:#fff;font-size:12px;font-weight:700;padding:2px 7px;border-radius:20px">Leading</span>' : '') +
           '<div style="font-size:24px;margin-bottom:3px">' + m.emoji + '</div>' +
           '<div style="font-size:14px;font-weight:800;color:#1a1a2e">' + m.name + '</div>' +
-          '<div style="font-size:11px;color:#666;margin:2px 0 6px">' + m.phase + '</div>' +
+          '<div style="font-size:12px;color:#666;margin:2px 0 6px">' + m.phase + '</div>' +
           '<div style="font-size:20px;font-weight:800;color:' + m.color + '">' + pct + '%</div>' +
           '</div>'
       }).join('')

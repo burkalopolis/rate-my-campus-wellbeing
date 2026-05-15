@@ -825,10 +825,10 @@ app.get('/api/campuses', async (req, res) => {
 
 function renderLanding(uc, csu, other) {
   const ucOptions = uc.map(c =>
-    `<option value="${c.id}" data-slug="${c.slug}">${c.name} — ${c.city}</option>`
+    `<option value="${c.id}" data-slug="${c.slug}">${c.name} — ${c.city || ''}</option>`
   ).join('')
   const csuOptions = csu.map(c =>
-    `<option value="${c.id}" data-slug="${c.slug}">${c.name} — ${c.city}</option>`
+    `<option value="${c.id}" data-slug="${c.slug}">${c.name} — ${c.city || ''}</option>`
   ).join("")
   const browseCards = [...uc, ...csu].map(c =>
     `<a class="browse-card" href="/campus/${c.slug}">
@@ -2169,9 +2169,9 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
     }
 
     // ── Radar chart ────────────────────────────────────────
-    const _campusSlug    = ${JSON.stringify(campus.slug)}
-    const _campusName    = ${JSON.stringify(campus.name)}
-    const _campusCity    = ${JSON.stringify(campus.city || '')}
+    const _campusSlug    = ${JSON.stringify(campus.slug).replace(/</g, '\\u003c')}
+    const _campusName    = ${JSON.stringify(campus.name).replace(/</g, '\\u003c')}
+    const _campusCity    = ${JSON.stringify(campus.city || '').replace(/</g, '\\u003c')}
     let   _radarPlanning = ${JSON.stringify(totalRatingsCount >= 1 ? { ...ratingAvgs, count: totalRatingsCount } : null)}
     let   _radarSocial   = ${JSON.stringify(wellbeingCount >= 1 ? { ...wellbeingAvgs, count: wellbeingCount } : null)}
     let   _radarMode     = 'both'

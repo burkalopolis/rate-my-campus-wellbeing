@@ -844,6 +844,8 @@ function renderLanding(uc, csu, other) {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Rate My Campus Wellbeing</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="canonical" href="https://ratemycampuswellbeing.com/">
   <meta name="description" content="Anonymous student wellbeing ratings for UC and CSU campuses. See how students rate mental health, social connection, academic pressure, and more.">
   <meta property="og:type" content="website">
@@ -981,6 +983,8 @@ function renderSubmitFlow(campus, allCampuses = []) {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Share Your Experience — Rate My Campus Wellbeing</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="canonical" href="https://ratemycampuswellbeing.com/submit">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://ratemycampuswellbeing.com/submit">
@@ -1966,6 +1970,8 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${campus.name} Wellbeing — Rate My Campus Wellbeing</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="canonical" href="https://ratemycampuswellbeing.com/campus/${campus.slug}">
   <meta name="description" content="Student wellbeing scores and reviews for ${campus.name}. See how students rate mental health, social connection, academic pressure, and more.">
   <meta property="og:type" content="website">

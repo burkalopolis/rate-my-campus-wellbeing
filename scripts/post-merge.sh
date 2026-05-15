@@ -1,4 +1,4 @@
 #!/bin/bash
 set -e
-pnpm install --frozen-lockfile
-pnpm --filter db push
+
+npm install --prefer-offline 2>/dev/null || npm install

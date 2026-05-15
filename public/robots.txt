@@ -1,4 +1,7 @@
 User-agent: *
 Disallow: /burkmin
+Disallow: /receipt
+Disallow: /api/
+Disallow: /admin
 
 Sitemap: https://ratemycampuswellbeing.com/sitemap.xml

@@ -855,7 +855,37 @@ function renderLanding(uc, csu, other) {
   <meta name="twitter:title" content="Rate My Campus Wellbeing">
   <meta name="twitter:description" content="Anonymous student wellbeing ratings for UC and CSU campuses.">
   <meta name="robots" content="index, follow">
-  <link rel="stylesheet" href="/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preload" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&family=Nunito+Sans:wght@400;500&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&family=Nunito+Sans:wght@400;500&display=swap"></noscript>
+  <style>:root{--bg-primary:#EEF2F7;--bg-white:#FFFFFF;--blue:#4A6FA5;--text-primary:#1A1F36;--text-secondary:#4A5568;--text-muted:#718096;--text-white:#FFFFFF;--border:rgba(0,0,0,.10);--border-med:rgba(0,0,0,.16);--max-width:680px;--radius-md:12px;--radius-lg:16px;--radius-pill:100px;--sp-1:8px;--sp-2:16px;--sp-3:24px;--sp-4:32px;--sp-6:48px}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:16px;-webkit-text-size-adjust:100%}
+body{font-family:'Nunito Sans',Arial,sans-serif;font-weight:400;font-size:17px;line-height:1.7;color:var(--text-primary);background:var(--bg-primary);min-height:100vh}
+h1,h2,h3,h4,h5,h6{font-family:'Nunito',Arial,sans-serif;line-height:1.2;color:var(--text-primary)}
+h1{font-size:34px;font-weight:800}
+a{color:var(--blue);text-decoration:none}
+img{max-width:100%;display:block}
+.hidden{display:none!important}
+.nav{display:flex;align-items:center;justify-content:space-between;padding:var(--sp-2) 20px;background:var(--bg-white);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100}
+.nav-logo{font-family:'Nunito',sans-serif;font-weight:800;font-size:15px;color:var(--blue);letter-spacing:-.01em}
+.nav-link{font-family:'Nunito',sans-serif;font-weight:600;font-size:14px;color:var(--blue)}
+.page-landing{min-height:100vh}
+.hero{max-width:var(--max-width);margin:0 auto;padding:var(--sp-6) 20px;text-align:center}
+.eyebrow{font-family:'Nunito',sans-serif;font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);margin-bottom:var(--sp-2)}
+.hero h1{font-size:40px;font-weight:800;color:var(--blue);margin-bottom:var(--sp-2);line-height:1.1}
+.hero-sub{font-size:17px;color:var(--text-secondary);max-width:420px;margin:0 auto var(--sp-3)}
+.trust-row{display:flex;gap:var(--sp-1);flex-wrap:wrap;justify-content:center;margin:var(--sp-2) 0}
+.trust-pill{font-family:'Nunito',sans-serif;font-size:12px;font-weight:600;padding:4px 12px;border-radius:var(--radius-pill);background:var(--bg-white);border:1px solid var(--border-med);color:var(--text-secondary)}
+.campus-select-card{background:var(--bg-white);border-radius:var(--radius-lg);border:1px solid var(--border);padding:var(--sp-3);margin-top:var(--sp-4);text-align:left}
+.select-label{display:block;font-family:'Nunito',sans-serif;font-size:14px;font-weight:600;color:var(--text-secondary);margin-bottom:var(--sp-1)}
+.campus-dropdown{width:100%;font-family:'Nunito Sans',sans-serif;font-size:16px;color:var(--text-primary);background:var(--bg-primary);border:1.5px solid var(--border-med);border-radius:var(--radius-md);padding:12px var(--sp-2);margin-bottom:var(--sp-2);appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%234A6FA5' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 16px center;cursor:pointer}
+.select-hint{text-align:center;font-size:13px;color:var(--text-muted);margin-top:var(--sp-1)}
+.btn-primary{display:inline-block;font-family:'Nunito',sans-serif;font-weight:600;font-size:14px;color:var(--text-white);background:var(--blue);border:none;border-radius:var(--radius-pill);padding:14px var(--sp-3);height:48px;cursor:pointer;text-align:center;text-decoration:none;transition:background .15s ease;white-space:nowrap;width:100%}
+.btn-primary:disabled{background:#B0BEC5;cursor:not-allowed}</style>
+  <link rel="preload" href="/style.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="/style.css"></noscript>
   <script type="application/ld+json">
   {"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Rate My Campus Wellbeing","url":"https://ratemycampuswellbeing.com","description":"Anonymous student wellbeing ratings for UC and CSU campuses. See how students rate mental health, social connection, academic pressure, and more.","potentialAction":{"@type":"SearchAction","target":{"@type":"EntryPoint","urlTemplate":"https://ratemycampuswellbeing.com/campus/{slug}"},"query-input":"required name=slug"}},{"@type":"Organization","name":"Rate My Campus Wellbeing","url":"https://ratemycampuswellbeing.com","description":"Anonymous platform for UC and CSU students to rate their campus wellbeing experience."}]}
   </script>
@@ -961,6 +991,10 @@ function renderSubmitFlow(campus, allCampuses = []) {
   <meta name="description" content="Anonymously rate your campus wellbeing experience. Share how your UC or CSU campus supports student mental health, social connection, and more.">
   <meta name="twitter:title" content="Share Your Experience — Rate My Campus Wellbeing">
   <meta name="robots" content="index, follow">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preload" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&family=Nunito+Sans:wght@400;500&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&family=Nunito+Sans:wght@400;500&display=swap"></noscript>
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
@@ -1946,6 +1980,10 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
   <script type="application/ld+json">
   {"@context":"https://schema.org","@type":"CollegeOrUniversity","name":"${campus.name}","url":"https://ratemycampuswellbeing.com/campus/${campus.slug}","sameAs":[],"review":{"@type":"UserReview","reviewBody":"Student wellbeing ratings and anonymous reviews for ${campus.name} covering mental health support, social belonging, academic resources, financial aid, and more.","itemReviewed":{"@type":"CollegeOrUniversity","name":"${campus.name}"}}}
   </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preload" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&family=Nunito+Sans:wght@400;500&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&family=Nunito+Sans:wght@400;500&display=swap"></noscript>
   <link rel="stylesheet" href="/style.css">
   <style>
     .year-pill{padding:6px 14px;border-radius:20px;border:1.5px solid #ccc;background:#fff;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s}

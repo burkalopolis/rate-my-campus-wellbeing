@@ -190,10 +190,13 @@ app.get('/submit', async (req, res) => {
 })
 
 // ── Campus ratings API (year-filtered) ──────────────────────
+const MIN_COHORT = 5
 app.get('/api/campus-ratings', async (req, res) => {
   const { campus_id, year } = req.query
   if (!campus_id) return res.status(400).json({ error: 'campus_id required' })
   const DIMS = ['physical','emotional','intellectual','social','spiritual','environmental','occupational','financial']
+  const VALID_YEARS = ['1st','2nd','3rd','4th','5th+','grad','alumni','dropout']
+  if (year && !VALID_YEARS.includes(year)) return res.status(400).json({ error: 'invalid year' })
   let q = supabaseAdmin
     .from('submissions')
     .select('rating_physical,rating_emotional,rating_intellectual,rating_social,rating_spiritual,rating_environmental,rating_occupational,rating_financial')
@@ -209,12 +212,15 @@ app.get('/api/campus-ratings', async (req, res) => {
 
   const [{ data, error }, { data: archData }] = await Promise.all([q, aq])
   if (error) return res.status(500).json({ error: error.message })
+  const ratingCount = (data || []).filter(r => DIMS.some(d => r[`rating_${d}`] != null)).length
+  if (ratingCount < MIN_COHORT) {
+    return res.json({ avgs: null, count: null, archCount: null, archCounts: null, suppressed: true })
+  }
   const avgs = {}
   for (const dim of DIMS) {
     const vals = (data || []).map(r => r[`rating_${dim}`]).filter(v => v !== null && v !== undefined)
     avgs[dim] = vals.length > 0 ? Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 10) / 10 : null
   }
-  const ratingCount = (data || []).filter(r => DIMS.some(d => r[`rating_${d}`] != null)).length
   const archCounts = { guardian: 0, warrior: 0, guide: 0, healer: 0 }
   for (const s of (archData || [])) {
     const v = s.submitters?.archetype_self
@@ -226,52 +232,74 @@ app.get('/api/campus-ratings', async (req, res) => {
 
 // ── Campus radar API (year-filtered, dual-layer) ────────────
 app.get('/api/campus-radar', async (req, res) => {
-  const { campus_id, campus_slug, campus_name, campus_city, year } = req.query
+  const { campus_id, year } = req.query
   if (!campus_id) return res.status(400).json({ error: 'campus_id required' })
   const DIMS = ['physical','emotional','intellectual','social','spiritual','environmental','occupational','financial']
+  const VALID_YEARS = ['1st','2nd','3rd','4th','5th+','grad','alumni','dropout']
+  if (year && !VALID_YEARS.includes(year)) return res.status(400).json({ error: 'invalid year' })
+
+  // Resolve campus server-side so callers cannot supply arbitrary filter values
+  const { data: campus, error: campusErr } = await supabase
+    .from('campuses')
+    .select('id, slug, name, city')
+    .eq('id', campus_id)
+    .eq('active', true)
+    .single()
+  if (campusErr || !campus) return res.status(404).json({ error: 'campus not found' })
 
   // ── Layer 1: Planning Capacity — RMCW submissions ──────────
   let q1 = supabaseAdmin.from('submissions')
     .select('rating_physical,rating_emotional,rating_intellectual,rating_social,rating_spiritual,rating_environmental,rating_occupational,rating_financial')
-    .eq('campus_id', campus_id)
+    .eq('campus_id', campus.id)
     .neq('deleted', true)
   if (year) q1 = q1.eq('year_in_school', year)
   const { data: rmcwRows, error: rmcwErr } = await q1
   if (rmcwErr) return res.status(500).json({ error: rmcwErr.message })
 
-  const planningAvgs = {}
-  for (const dim of DIMS) {
-    const vals = (rmcwRows || []).map(r => r[`rating_${dim}`]).filter(v => v != null)
-    planningAvgs[dim] = vals.length > 0 ? Math.round(vals.reduce((a,b)=>a+b,0)/vals.length*10)/10 : null
-  }
   const planningCount = (rmcwRows || []).length
-  const planning = planningCount >= 1
-    ? { ...planningAvgs, count: planningCount }
-    : null
+  let planning = null
+  if (planningCount >= MIN_COHORT) {
+    const planningAvgs = {}
+    for (const dim of DIMS) {
+      const vals = (rmcwRows || []).map(r => r[`rating_${dim}`]).filter(v => v != null)
+      planningAvgs[dim] = vals.length > 0 ? Math.round(vals.reduce((a,b)=>a+b,0)/vals.length*10)/10 : null
+    }
+    planning = { ...planningAvgs, count: planningCount }
+  } else if (planningCount > 0) {
+    planning = { suppressed: true, count: null }
+  }
 
   // ── Layer 2: Social Capacity — CampusMind assessments ──────
-  // q1–q8 map to Physical–Financial; college field is slug OR full name
+  // q1–q8 map to Physical–Financial; college field is slug OR full name.
+  // Campus identifiers are resolved from the verified campus record above —
+  // never from caller-supplied query parameters — to prevent filter injection.
   let social = null
-  if (supabaseCM && (campus_slug || campus_name)) {
+  if (supabaseCM) {
     try {
       let q2 = supabaseCM.from('assessments')
         .select('q1,q2,q3,q4,q5,q6,q7,q8,year_in_school')
       // OR match: slug | full name | "Name — City" (CampusMind format)
       const orParts = []
-      if (campus_slug) orParts.push(`college.eq."${campus_slug}"`)
-      if (campus_name) orParts.push(`college.eq."${campus_name}"`)
-      if (campus_name && campus_city) orParts.push(`college.eq."${campus_name} \u2014 ${campus_city}"`)
+      if (campus.slug) orParts.push(`college.eq."${campus.slug.replace(/"/g, '')}"`)
+      if (campus.name) orParts.push(`college.eq."${campus.name.replace(/"/g, '')}"`)
+      if (campus.name && campus.city) orParts.push(`college.eq."${campus.name.replace(/"/g, '')} \u2014 ${campus.city.replace(/"/g, '')}"`)
+      if (orParts.length === 0) throw new Error('no campus identifiers available')
       q2 = q2.or(orParts.join(','))
       if (year) q2 = q2.eq('year_in_school', year)
       const { data: cmRows, error: cmErr } = await q2
-      if (!cmErr && cmRows && cmRows.length >= 1) {
-        const qMap = ['q1','q2','q3','q4','q5','q6','q7','q8']
-        const socialAvgs = {}
-        DIMS.forEach((dim, i) => {
-          const vals = cmRows.map(r => r[qMap[i]]).filter(v => v != null)
-          socialAvgs[dim] = vals.length > 0 ? Math.round(vals.reduce((a,b)=>a+b,0)/vals.length*10)/10 : null
-        })
-        social = { ...socialAvgs, count: cmRows.length }
+      if (!cmErr && cmRows) {
+        const cmCount = cmRows.length
+        if (cmCount >= MIN_COHORT) {
+          const qMap = ['q1','q2','q3','q4','q5','q6','q7','q8']
+          const socialAvgs = {}
+          DIMS.forEach((dim, i) => {
+            const vals = cmRows.map(r => r[qMap[i]]).filter(v => v != null)
+            socialAvgs[dim] = vals.length > 0 ? Math.round(vals.reduce((a,b)=>a+b,0)/vals.length*10)/10 : null
+          })
+          social = { ...socialAvgs, count: cmCount }
+        } else if (cmCount > 0) {
+          social = { suppressed: true, count: null }
+        }
       } else if (cmErr) {
         console.error('[radar] CampusMind query error:', cmErr.message)
       }

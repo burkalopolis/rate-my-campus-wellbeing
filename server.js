@@ -775,7 +775,7 @@ app.post('/api/burkmin/restore/:id', requireAdminApi, requireSameOrigin, async (
 app.get('/sitemap.xml', async (req, res) => {
   const { data: campuses } = await supabase
     .from('campuses')
-    .select('slug')
+    .select('slug, last_modified')
     .eq('active', true)
     .order('name')
 
@@ -793,7 +793,7 @@ app.get('/sitemap.xml', async (req, res) => {
   const campusUrls = (campuses || []).filter(c => c.slug !== 'other').map(c => `
   <url>
     <loc>${base}/campus/${c.slug}</loc>
-    <lastmod>${today}</lastmod>
+    <lastmod>${c.last_modified ? c.last_modified.split('T')[0] : today}</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>`).join('')

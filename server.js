@@ -51,6 +51,7 @@ app.use(session({
   cookie: {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
     maxAge: 8 * 60 * 60 * 1000
   }
 }))
@@ -95,6 +96,44 @@ const subscribeLimiter = rateLimit({
   message: { error: 'Too many submissions — please try again later' },
   statusCode: 429
 })
+
+// 10 login attempts per 15 minutes per IP
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: 'Too many login attempts — please try again later',
+  statusCode: 429,
+  skipSuccessfulRequests: true
+})
+
+// ── CSRF: server-side same-origin check ─────────────────────
+// Validates Origin (or Referer as fallback) for all state-changing
+// admin requests so cross-site requests are rejected server-side,
+// regardless of browser SameSite behaviour.
+function requireSameOrigin(req, res, next) {
+  const origin = req.get('Origin')
+  const referer = req.get('Referer')
+  const source = origin || referer
+  if (!source) {
+    return res.status(403).json({ error: 'Forbidden' })
+  }
+  let sourceOrigin
+  try {
+    const u = new URL(source)
+    sourceOrigin = u.origin
+  } catch {
+    return res.status(403).json({ error: 'Forbidden' })
+  }
+  const proto = req.protocol
+  const host = req.get('Host') || req.hostname
+  const ownOrigin = `${proto}://${host}`
+  if (sourceOrigin !== ownOrigin) {
+    return res.status(403).json({ error: 'Forbidden' })
+  }
+  next()
+}
 
 // ── Session-based admin auth middlewares ─────────────────────
 function requireAdminSession(req, res, next) {
@@ -442,7 +481,7 @@ app.get('/burkmin', (req, res) => {
   res.send(renderAdminLogin(err))
 })
 
-app.post('/burkmin/login', (req, res) => {
+app.post('/burkmin/login', loginLimiter, (req, res) => {
   const { password } = req.body
   if (password && password === process.env.ADMIN_PASSWORD) {
     req.session.admin = true
@@ -451,7 +490,7 @@ app.post('/burkmin/login', (req, res) => {
   res.redirect('/burkmin?error=1')
 })
 
-app.get('/burkmin/logout', (req, res) => {
+app.post('/burkmin/logout', requireAdminSession, requireSameOrigin, (req, res) => {
   req.session.destroy(() => res.redirect('/burkmin'))
 })
 
@@ -638,7 +677,7 @@ app.post('/api/submit', submitLimiter, async (req, res) => {
 
 // ── /api/burkmin/* — all require active session ──────────────
 
-app.post('/api/burkmin/flag-feedback/:id', requireAdminApi, async (req, res) => {
+app.post('/api/burkmin/flag-feedback/:id', requireAdminApi, requireSameOrigin, async (req, res) => {
   const { reason } = req.body
   const { error } = await supabaseAdmin.from('submissions')
     .update({ feedback_flagged: true, feedback_flag_reason: reason || 'Flagged by admin' })
@@ -647,7 +686,7 @@ app.post('/api/burkmin/flag-feedback/:id', requireAdminApi, async (req, res) => 
   res.json({ success: true })
 })
 
-app.post('/api/burkmin/unflag-feedback/:id', requireAdminApi, async (req, res) => {
+app.post('/api/burkmin/unflag-feedback/:id', requireAdminApi, requireSameOrigin, async (req, res) => {
   const { error } = await supabaseAdmin.from('submissions')
     .update({ feedback_flagged: false, feedback_flag_reason: null })
     .eq('id', req.params.id)
@@ -655,7 +694,7 @@ app.post('/api/burkmin/unflag-feedback/:id', requireAdminApi, async (req, res) =
   res.json({ success: true })
 })
 
-app.post('/api/burkmin/flag-guidance/:id', requireAdminApi, async (req, res) => {
+app.post('/api/burkmin/flag-guidance/:id', requireAdminApi, requireSameOrigin, async (req, res) => {
   const { reason } = req.body
   const { error } = await supabaseAdmin.from('submissions')
     .update({ guidance_flagged: true, guidance_flag_reason: reason || 'Flagged by admin' })
@@ -664,7 +703,7 @@ app.post('/api/burkmin/flag-guidance/:id', requireAdminApi, async (req, res) => 
   res.json({ success: true })
 })
 
-app.post('/api/burkmin/unflag-guidance/:id', requireAdminApi, async (req, res) => {
+app.post('/api/burkmin/unflag-guidance/:id', requireAdminApi, requireSameOrigin, async (req, res) => {
   const { error } = await supabaseAdmin.from('submissions')
     .update({ guidance_flagged: false, guidance_flag_reason: null })
     .eq('id', req.params.id)
@@ -672,7 +711,7 @@ app.post('/api/burkmin/unflag-guidance/:id', requireAdminApi, async (req, res) =
   res.json({ success: true })
 })
 
-app.post('/api/burkmin/archive/:id', requireAdminApi, async (req, res) => {
+app.post('/api/burkmin/archive/:id', requireAdminApi, requireSameOrigin, async (req, res) => {
   const { error } = await supabaseAdmin.from('submissions')
     .update({ archived: true })
     .eq('id', req.params.id)
@@ -680,7 +719,7 @@ app.post('/api/burkmin/archive/:id', requireAdminApi, async (req, res) => {
   res.json({ success: true })
 })
 
-app.post('/api/burkmin/unarchive/:id', requireAdminApi, async (req, res) => {
+app.post('/api/burkmin/unarchive/:id', requireAdminApi, requireSameOrigin, async (req, res) => {
   const { error } = await supabaseAdmin.from('submissions')
     .update({ archived: false })
     .eq('id', req.params.id)
@@ -688,7 +727,7 @@ app.post('/api/burkmin/unarchive/:id', requireAdminApi, async (req, res) => {
   res.json({ success: true })
 })
 
-app.post('/api/burkmin/delete/:id', requireAdminApi, async (req, res) => {
+app.post('/api/burkmin/delete/:id', requireAdminApi, requireSameOrigin, async (req, res) => {
   const { error } = await supabaseAdmin.from('submissions')
     .update({ deleted: true })
     .eq('id', req.params.id)
@@ -696,7 +735,7 @@ app.post('/api/burkmin/delete/:id', requireAdminApi, async (req, res) => {
   res.json({ success: true })
 })
 
-app.post('/api/burkmin/restore/:id', requireAdminApi, async (req, res) => {
+app.post('/api/burkmin/restore/:id', requireAdminApi, requireSameOrigin, async (req, res) => {
   const { error } = await supabaseAdmin.from('submissions')
     .update({ deleted: false })
     .eq('id', req.params.id)
@@ -2512,7 +2551,9 @@ function renderAdminDashboard(normal, archived, deleted, total) {
   <div class="page-admin">
     <header class="nav">
       <span class="nav-logo">RMCW Admin</span>
-      <a href="/burkmin/logout" style="margin-left:auto;font-size:13px;color:#888;text-decoration:none;padding:5px 12px;border:1.5px solid #e5e7eb;border-radius:6px">Log out</a>
+      <form method="POST" action="/burkmin/logout" style="margin-left:auto">
+        <button type="submit" style="font-size:13px;color:#888;background:none;border:1.5px solid #e5e7eb;border-radius:6px;padding:5px 12px;cursor:pointer">Log out</button>
+      </form>
     </header>
     <main class="admin-main">
 

@@ -2056,8 +2056,8 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
             '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px">' +
               '<p class="panel-label" style="margin:0">Campus Resilience Lean</p>' +
               '<div style="display:flex;gap:4px">' +
-                '<button class="lean-toggle active" data-mode="self" onclick="switchLeanMode(\'self\')" style="padding:5px 12px;border-radius:20px;border:1.5px solid #3a86ff;background:#3a86ff;color:#fff;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s">Self-Reported</button>' +
-                '<button class="lean-toggle" data-mode="derived" onclick="switchLeanMode(\'derived\')" style="padding:5px 12px;border-radius:20px;border:1.5px solid #ccc;background:#fff;color:#666;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s">Rating-Derived</button>' +
+                '<button class="lean-toggle" data-mode="self" onclick="switchLeanMode(\'self\')" style="padding:5px 12px;border-radius:20px;border:1.5px solid #ccc;background:#fff;color:#666;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s">Self-Reported</button>' +
+                '<button class="lean-toggle active" data-mode="derived" onclick="switchLeanMode(\'derived\')" style="padding:5px 12px;border-radius:20px;border:1.5px solid #3a86ff;background:#3a86ff;color:#fff;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s">Rating-Derived</button>' +
               '</div>' +
             '</div>' +
             '<div id="lean-grid"></div>' +
@@ -2179,7 +2179,7 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
     // ── Lean data ───────────────────────────────────────────
     let _leanSelf    = ${JSON.stringify(archetypeLean)}
     let _leanDerived = null
-    let _leanMode    = 'self'
+    let _leanMode    = 'derived'
     let _leanRatCount = ${totalRatingsCount}
 
     function buildRadarSVG(l1, l2, mode) {
@@ -2362,7 +2362,7 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
 
     // Initial lean draw
     _leanDerived = computeRatingDerived(_radarPlanning)
-    renderLeanGrid('self')
+    renderLeanGrid('derived')
 
     // ── Subject filter ─────────────────────────────────────
     let _activeSubject = ''

@@ -4,6 +4,7 @@
 // ============================================================
 
 import express from 'express'
+import compression from 'compression'
 import session from 'express-session'
 import rateLimit from 'express-rate-limit'
 import { createClient } from '@supabase/supabase-js'
@@ -43,6 +44,7 @@ try {
 
 // ── Express setup ───────────────────────────────────────────
 const app = express()
+app.use(compression())
 app.set("trust proxy", 1)
 app.use(session({
   secret: process.env.SESSION_SECRET || 'rmcw-fallback-secret',

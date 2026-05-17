@@ -846,18 +846,24 @@ function renderLanding(uc, csu, other) {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Rate My Campus Wellbeing</title>
+  <link rel="icon" type="image/png" href="/favicon.png">
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="/favicon.png">
   <link rel="canonical" href="https://ratemycampuswellbeing.com/">
   <meta name="description" content="Anonymous student wellbeing ratings for UC and CSU campuses. See how students rate mental health, social connection, academic pressure, and more.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://ratemycampuswellbeing.com/">
   <meta property="og:title" content="Rate My Campus Wellbeing">
   <meta property="og:description" content="Anonymous student wellbeing ratings for UC and CSU campuses.">
+  <meta property="og:image" content="https://ratemycampuswellbeing.com/og-image.png">
+  <meta property="og:image:width" content="1920">
+  <meta property="og:image:height" content="384">
   <meta property="og:site_name" content="Rate My Campus Wellbeing">
-  <meta name="twitter:card" content="summary">
+  <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Rate My Campus Wellbeing">
   <meta name="twitter:description" content="Anonymous student wellbeing ratings for UC and CSU campuses.">
+  <meta name="twitter:image" content="https://ratemycampuswellbeing.com/og-image.png">
   <meta name="robots" content="index, follow">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -985,17 +991,23 @@ function renderSubmitFlow(campus, allCampuses = []) {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Share Your Experience — Rate My Campus Wellbeing</title>
+  <link rel="icon" type="image/png" href="/favicon.png">
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="/favicon.png">
   <link rel="canonical" href="https://ratemycampuswellbeing.com/submit">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://ratemycampuswellbeing.com/submit">
   <meta property="og:title" content="Share Your Experience — Rate My Campus Wellbeing">
   <meta property="og:description" content="Anonymously rate your campus wellbeing experience. Takes 2 minutes.">
+  <meta property="og:image" content="https://ratemycampuswellbeing.com/og-image.png">
+  <meta property="og:image:width" content="1920">
+  <meta property="og:image:height" content="384">
   <meta property="og:site_name" content="Rate My Campus Wellbeing">
-  <meta name="twitter:card" content="summary">
+  <meta name="twitter:card" content="summary_large_image">
   <meta name="description" content="Anonymously rate your campus wellbeing experience. Share how your UC or CSU campus supports student mental health, social connection, and more.">
   <meta name="twitter:title" content="Share Your Experience — Rate My Campus Wellbeing">
+  <meta name="twitter:image" content="https://ratemycampuswellbeing.com/og-image.png">
   <meta name="robots" content="index, follow">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1972,18 +1984,24 @@ function renderCampusPage(campus, archetypeScores, dimensionScores, submissions,
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${campus.name} Wellbeing — Rate My Campus Wellbeing</title>
+  <link rel="icon" type="image/png" href="/favicon.png">
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="/favicon.png">
   <link rel="canonical" href="https://ratemycampuswellbeing.com/campus/${campus.slug}">
   <meta name="description" content="Student wellbeing scores and reviews for ${campus.name}. See how students rate mental health, social connection, academic pressure, and more.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://ratemycampuswellbeing.com/campus/${campus.slug}">
   <meta property="og:title" content="${campus.name} Wellbeing — Rate My Campus Wellbeing">
   <meta property="og:description" content="Student wellbeing scores and reviews for ${campus.name}.">
+  <meta property="og:image" content="https://ratemycampuswellbeing.com/og-image.png">
+  <meta property="og:image:width" content="1920">
+  <meta property="og:image:height" content="384">
   <meta property="og:site_name" content="Rate My Campus Wellbeing">
-  <meta name="twitter:card" content="summary">
+  <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="${campus.name} Wellbeing — Rate My Campus Wellbeing">
   <meta name="twitter:description" content="Student wellbeing scores and reviews for ${campus.name}.">
+  <meta name="twitter:image" content="https://ratemycampuswellbeing.com/og-image.png">
   <meta name="robots" content="index, follow">
   <script type="application/ld+json">
   {"@context":"https://schema.org","@type":"CollegeOrUniversity","name":"${campus.name}","url":"https://ratemycampuswellbeing.com/campus/${campus.slug}","sameAs":[],"review":{"@type":"UserReview","reviewBody":"Student wellbeing ratings and anonymous reviews for ${campus.name} covering mental health support, social belonging, academic resources, financial aid, and more.","itemReviewed":{"@type":"CollegeOrUniversity","name":"${campus.name}"}}}
